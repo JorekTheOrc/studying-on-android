@@ -124,8 +124,19 @@ export function HomePage() {
           {folders.filter(f => f.parent_id === null).map(f => {
             const color = getFolderColor(f.id)
             return (
-              <button key={f.id} onClick={() => handleFolderClick(f.id, f.name)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left', background: selectedFolder === f.id ? '#334155' : 'transparent', color: selectedFolder === f.id ? '#fff' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: isEditingFolders ? 'text' : 'pointer', transition: '0.2s' }}>
+              <button 
+                key={f.id} 
+                onClick={() => handleFolderClick(f.id, f.name)} 
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left', 
+                  background: selectedFolder === f.id ? '#334155' : (isEditingFolders ? '#2a3547' : 'transparent'), 
+                  color: selectedFolder === f.id ? '#fff' : '#94a3b8', 
+                  border: isEditingFolders ? '1px dashed #f59e0b' : '1px solid transparent', 
+                  padding: '0.6rem', borderRadius: '4px', cursor: isEditingFolders ? 'text' : 'pointer', transition: '0.2s' 
+                }}
+              >
                 <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: color, flexShrink: 0 }}></div>
+                {isEditingFolders && <span style={{ fontSize: '0.8rem' }}>✏️</span>}
                 {f.name}
               </button>
             )
