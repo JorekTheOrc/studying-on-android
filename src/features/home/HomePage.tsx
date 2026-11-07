@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { useNavigate } from 'react-router-dom'
-import type { Set, Folder } from '../../types'
+import type { Set } from '../../types'
 import { generateUUID } from '../../utils'
 
 export function HomePage() {

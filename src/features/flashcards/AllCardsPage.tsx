@@ -17,7 +17,6 @@ export function AllCardsPage() {
   const allTags = Array.from(new Set(cards.flatMap(c => c.tags)))
 
   const filteredCards = cards.filter(c => {
-    const s = setMap.get(c.set_id)
     const matchesSearch = c.front.toLowerCase().includes(search.toLowerCase()) || c.back.toLowerCase().includes(search.toLowerCase())
     const matchesTag = filterTag === '' || c.tags.includes(filterTag)
     return matchesSearch && matchesTag
