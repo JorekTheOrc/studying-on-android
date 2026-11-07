@@ -70,7 +70,6 @@ export function PracticePage() {
     })
   }, [exerciseId, exercise?.items.length])
 
-  // Shuffle MC options and memoize them
   const shuffledOptions = useMemo(() => {
     if (!exercise || exercise.type !== 'multiple_choice' || !exercise.items[currentIndex]) return []
     return [...(exercise.items[currentIndex].options || [])].sort(() => Math.random() - 0.5)
@@ -243,11 +242,9 @@ export function PracticePage() {
 
       {showTheory && (
         <div onClick={() => setShowTheory(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto', width: '100%' }}>
+          <div onClick={e => e.stopPropagation()} className="markdown-content" style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto', width: '100%' }}>
             <h2 style={{ marginTop: 0 }}>Theory</h2>
-            <div style={{ lineHeight: 1.6, color: '#e2e8f0' }}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{set.theory_md}</ReactMarkdown>
-            </div>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{set.theory_md}</ReactMarkdown>
             <button onClick={() => setShowTheory(false)} style={{ marginTop: '1.5rem', padding: '0.8rem 1.5rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '100%', fontWeight: 'bold' }}>Close</button>
           </div>
         </div>

@@ -2,6 +2,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 export function RunnerPage() {
   const { setId } = useParams()
@@ -28,7 +30,6 @@ export function RunnerPage() {
           </p>
         </div>
         
-        {/* Flashcards Button */}
         <button 
           onClick={() => navigate(`/runner/${setId}/flashcards`)}
           style={{ padding: '0.8rem 1.5rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
@@ -55,8 +56,8 @@ export function RunnerPage() {
       </div>
 
       {activeTab === 'theory' && set.theory_md && (
-        <div style={{ background: '#1e293b', padding: '1.5rem', borderRadius: '8px', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-          {set.theory_md}
+        <div className="markdown-content" style={{ background: '#1e293b', padding: '1.5rem', borderRadius: '8px', lineHeight: 1.6 }}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{set.theory_md}</ReactMarkdown>
         </div>
       )}
 
