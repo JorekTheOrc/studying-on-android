@@ -1,11 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 export function HomePage() {
-  // Fetch sets from DB, re-renders automatically if DB changes
   const sets = useLiveQuery(() => db.sets.toArray(), [])
   const loading = sets === undefined
+  const navigate = useNavigate()
 
   return (
     <div style={{ maxWidth: '900px' }}>
@@ -32,12 +32,11 @@ export function HomePage() {
               </div>
               
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                {/* Кнопка-заглушка, в будущем будет открывать упражнения */}
                 <button 
-                  onClick={() => alert('Exercise Runner coming in the next step!')}
+                  onClick={() => navigate(`/runner/${set.id}`)}
                   style={{ padding: '0.5rem 1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
-                  Start
+                  Open
                 </button>
               </div>
             </div>
