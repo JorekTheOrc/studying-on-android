@@ -69,7 +69,7 @@ export function PracticePage() {
 
   const checkAnswer = async () => {
     let isCorrect = false
-    const correctAnswer = item.answer[0]
+    const correctAnswer = item.answer?.[0] || ''
     const normalize = (s: any) => String(s).toLowerCase().trim()
     let answerToSave = userAnswer
 
@@ -229,20 +229,26 @@ export function PracticePage() {
       )}
 
       {exercise.type === 'matching' && item.pairs && (
-        <div style={{ display: 'grid', gap: '1rem' }}>
+        <div style={{ display: 'grid', gap: '1.5rem' }}>
           {item.pairs.map(pair => (
-            <div key={pair.left} style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: '#1e293b', padding: '1rem', borderRadius: '8px' }}>
-              <span style={{ flex: 1, fontWeight: 'bold' }}>{pair.left}</span>
-              <span style={{ color: '#64748b' }}>→</span>
-              <select
-                disabled={status !== 'idle'}
-                value={matchingSelections[pair.left] || ''}
-                onChange={(e) => setMatchingSelections(prev => ({ ...prev, [pair.left]: e.target.value }))}
-                style={{ flex: 1, padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', fontSize: '1rem' }}
-              >
-                <option value="">-- Select --</option>
-                {item.pairs?.map(p => <option key={p.right} value={p.right}>{p.right}</option>)}
-              </select>
+            <div key={pair.left} style={{ background: '#1e293b', padding: '1rem', borderRadius: '8px', border: '1px solid #334155' }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '0.8rem', fontSize: '1.1rem', color: '#38bdf8' }}>{pair.left}</div>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
+                {item.pairs?.map(p => (
+                  <label key={p.right} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: status === 'idle' ? 'pointer' : 'default', padding: '0.6rem', background: matchingSelections[pair.left] === p.right ? '#334155' : '#0f172a', borderRadius: '6px', border: '1px solid ' + (matchingSelections[pair.left] === p.right ? '#38bdf8' : 'transparent') }}>
+                    <input
+                      type="radio"
+                      name={`match-${pair.left}`}
+                      value={p.right}
+                      checked={matchingSelections[pair.left] === p.right}
+                      onChange={() => setMatchingSelections(prev => ({ ...prev, [pair.left]: p.right }))}
+                      disabled={status !== 'idle'}
+                      style={{ width: '20px', height: '20px', accentColor: '#0ea5e9' }}
+                    />
+                    <span style={{ fontSize: '1rem' }}>{p.right}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           ))}
         </div>
