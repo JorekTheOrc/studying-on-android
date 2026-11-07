@@ -10,8 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
+    "dexie": "^4.4.7",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.18.5",
+    "vite-plugin-pwa": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
