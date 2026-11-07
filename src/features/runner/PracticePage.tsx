@@ -10,7 +10,7 @@ export function PracticePage() {
   const exercise = useLiveQuery(() => exerciseId ? db.exercises.get(exerciseId) : undefined, [exerciseId])
   const set = useLiveQuery(() => setId ? db.sets.get(setId) : undefined, [setId])
   
-  const [currentIndex, setCurrentIndex] = useState(() => {
+  const [currentIndex, setCurrentIndex] = useState<number>(() => {
     if (!exerciseId) return 0
     const saved = localStorage.getItem(`progress_${exerciseId}`)
     return saved ? JSON.parse(saved).currentIndex || 0 : 0
