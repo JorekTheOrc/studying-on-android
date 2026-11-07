@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
+import type { Card } from '../../types'
 
 export function ReviewPage() {
   const [searchParams] = useSearchParams()
@@ -13,7 +14,8 @@ export function ReviewPage() {
   const tags = tagsParam ? tagsParam.split(',') : []
   const uncategorized = searchParams.get('uncategorized') === 'true'
   
-  const cards = useLiveQuery(async () => {
+  // 1. Fetch initial due cards
+  const initialCards = useLiveQuery(async () => {
     let allCards = await db.cards.toArray()
     
     if (folderId || uncategorized) {
@@ -32,21 +34,32 @@ export function ReviewPage() {
     return allCards.filter(c => c.due <= Date.now())
   }, [folderId, setId, tagsParam, uncategorized])
 
-  if (cards === undefined) return <p>Loading cards...</p>
+  // 2. Local Session Queue State
+  const [sessionQueue, setSessionQueue] = useState<Card[]>([])
+
+  // 3. Sync fetched cards into local queue (only when fetched or empty)
+  useEffect(() => {
+    if (initialCards && initialCards.length > 0) {
+      setSessionQueue(initialCards)
+    }
+  }, [initialCards])
+
+  if (initialCards === undefined) return <p>Loading cards...</p>
   
   const backTo = setId ? `/runner/${setId}` : '/cards'
-  
-  if (cards.length === 0) {
+
+  // 4. Empty queue = Session Finished
+  if (sessionQueue.length === 0) {
     return (
       <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center', marginTop: '4rem' }}>
         <h2>All done for now! 🎉</h2>
-        <p style={{ color: '#94a3b8' }}>No cards due for review with these filters.</p>
+        <p style={{ color: '#94a3b8' }}>You've reviewed all cards in this session.</p>
         <Link to={backTo} style={{ display: 'inline-block', marginTop: '1rem', color: '#38bdf8' }}>← Go back</Link>
       </div>
     )
   }
 
-  const currentCard = cards[0]
+  const currentCard = sessionQueue[0]
 
   const handleRating = async (rating: 'again' | 'good') => {
     const now = Date.now()
@@ -55,15 +68,28 @@ export function ReviewPage() {
 
     if (rating === 'again') {
       newInterval = 0
-      newDue = now + 60 * 1000
+      newDue = now + 60 * 1000 // 1 minute
     } else {
       newInterval = currentCard.interval === 0 ? 1 : currentCard.interval * 2
       newDue = now + newInterval * 24 * 60 * 60 * 1000
     }
 
+    // Update DB
     await db.cards.update(currentCard.id, {
       interval: newInterval, due: newDue, reps: currentCard.reps + 1
     })
+
+    // Update Local Queue
+    setSessionQueue(prevQueue => {
+      const rest = prevQueue.slice(1)
+      if (rating === 'again') {
+        // Send to the end of the current session queue
+        return [...rest, { ...currentCard, due: newDue, interval: newInterval, reps: currentCard.reps + 1 }]
+      }
+      // Remove completely from session queue
+      return rest
+    })
+    
     setIsFlipped(false)
   }
 
@@ -71,7 +97,7 @@ export function ReviewPage() {
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
         <Link to={backTo} style={{ color: '#94a3b8', textDecoration: 'none' }}>← Quit Review</Link>
-        <span style={{ color: '#94a3b8' }}>Cards due: {cards.length}</span>
+        <span style={{ color: '#94a3b8' }}>Cards in queue: {sessionQueue.length}</span>
       </div>
 
       <div 
