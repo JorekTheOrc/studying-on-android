@@ -3,17 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { useNavigate } from 'react-router-dom'
 import type { Set } from '../../types'
-import { generateUUID } from '../../utils'
+import { generateUUID, getFolderColor } from '../../utils'
 import { ReviewModal } from '../../shared/ReviewModal'
-
-const FOLDER_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#84cc16']
-
-function getFolderColor(id: string | null) {
-  if (!id) return '#64748b'
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
-  return FOLDER_COLORS[Math.abs(hash) % FOLDER_COLORS.length]
-}
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -30,7 +21,6 @@ export function HomePage() {
   const [editFolder, setEditFolder] = useState('')
   const [editTags, setEditTags] = useState('')
 
-  // Review Modal State
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
   const [reviewBaseUrl, setReviewBaseUrl] = useState('')
 
@@ -102,7 +92,6 @@ export function HomePage() {
   return (
     <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap', paddingBottom: selectedSets.length > 0 ? '80px' : '0' }}>
       
-      {/* Sidebar: Folders */}
       <div style={{ width: '220px', background: '#1e293b', borderRadius: '8px', padding: '1rem', border: '1px solid #334155', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h3 style={{ margin: 0, color: '#e2e8f0' }}>Folders</h3>
@@ -125,28 +114,14 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={{ flex: 1, minWidth: '300px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <h1 style={{ margin: 0 }}>My Sets</h1>
-            <button 
-              onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedSets([]); }} 
-              style={{ padding: '0.4rem 1rem', background: isSelectionMode ? '#ef4444' : '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
-            >
-              {isSelectionMode ? 'Cancel' : 'Move set(s)'}
-            </button>
-            <button 
-              onClick={openReviewModal}
-              style={{ padding: '0.4rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
-            >
-              🎴 Review {currentFolderName} Cards
-            </button>
+            <button onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedSets([]); }} style={{ padding: '0.4rem 1rem', background: isSelectionMode ? '#ef4444' : '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}>{isSelectionMode ? 'Cancel' : 'Move set(s)'}</button>
+            <button onClick={openReviewModal} style={{ padding: '0.4rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}>🎴 Review {currentFolderName} Cards</button>
           </div>
-          <input 
-            type="text" placeholder="Search sets or tags..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ padding: '0.6rem 1rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', width: '250px' }}
-          />
+          <input type="text" placeholder="Search sets or tags..." value={search} onChange={e => setSearch(e.target.value)} style={{ padding: '0.6rem 1rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', width: '250px' }} />
         </div>
 
         {filteredSets.length === 0 ? (
@@ -159,39 +134,19 @@ export function HomePage() {
               const folderColor = getFolderColor(set.folder_id)
               const isSelected = selectedSets.includes(set.id)
               return (
-                <div 
-                  key={set.id} 
-                  onClick={() => isSelectionMode ? toggleSelection(set.id) : navigate(`/runner/${set.id}`)}
-                  style={{ 
-                    padding: '1.5rem', background: '#1e293b', 
-                    border: '1px solid ' + (isSelected ? '#0ea5e9' : '#334155'), 
-                    borderLeft: `6px solid ${folderColor}`,
-                    borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem',
-                    transition: '0.2s', cursor: 'pointer'
-                  }}
-                >
+                <div key={set.id} onClick={() => isSelectionMode ? toggleSelection(set.id) : navigate(`/runner/${set.id}`)} style={{ padding: '1.5rem', background: '#1e293b', border: '1px solid ' + (isSelected ? '#0ea5e9' : '#334155'), borderLeft: `6px solid ${folderColor}`, borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem', transition: '0.2s', cursor: 'pointer' }}>
                   {isSelectionMode && (
-                    <input 
-                      type="checkbox" 
-                      checked={isSelected}
-                      onChange={() => toggleSelection(set.id)}
-                      onClick={e => e.stopPropagation()}
-                      style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9' }}
-                    />
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelection(set.id)} onClick={e => e.stopPropagation()} style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9' }} />
                   )}
-
                   <div style={{ flex: 1 }}>
                     <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>{set.title}</h3>
-                    <div style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
-                      Topic: {set.topic || 'N/A'} | Level: {set.level || 'N/A'}
-                    </div>
+                    <div style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Topic: {set.topic || 'N/A'} | Level: {set.level || 'N/A'}</div>
                     {set.tags.length > 0 && (
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         {set.tags.map(t => <span key={t} style={{ fontSize: '0.75rem', background: '#334155', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#cbd5e1' }}>#{t}</span>)}
                       </div>
                     )}
                   </div>
-                  
                   <div style={{ display: 'flex', gap: '0.5rem' }} onClick={e => e.stopPropagation()}>
                     <button onClick={() => openEditModal(set)} style={{ padding: '0.5rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
                     <button onClick={() => navigate(`/runner/${set.id}`)} style={{ padding: '0.5rem 1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Open</button>
@@ -204,23 +159,12 @@ export function HomePage() {
       </div>
 
       {selectedSets.length > 0 && (
-        <div style={{ 
-          position: 'fixed', bottom: 0, left: 0, right: 0, 
-          background: '#1e293b', borderTop: '1px solid #334155', 
-          padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem',
-          zIndex: 900, boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.1)'
-        }}>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1e293b', borderTop: '1px solid #334155', padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', zIndex: 900, boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.1)' }}>
           <span style={{ fontWeight: 'bold', color: '#38bdf8' }}>{selectedSets.length} selected</span>
-          <select 
-            onChange={(e) => handleBulkMove(e.target.value === 'null' ? null : e.target.value)}
-            defaultValue=""
-            style={{ padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', cursor: 'pointer' }}
-          >
+          <select onChange={(e) => handleBulkMove(e.target.value === 'null' ? null : e.target.value)} defaultValue="" style={{ padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', cursor: 'pointer' }}>
             <option value="" disabled>Move to folder...</option>
             <option value="null">Uncategorized</option>
-            {folders.filter(f => f.parent_id === null).map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
+            {folders.filter(f => f.parent_id === null).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
           <button onClick={() => setSelectedSets([])} style={{ padding: '0.6rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Clear</button>
         </div>

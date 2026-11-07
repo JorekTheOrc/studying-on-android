@@ -4,6 +4,7 @@ import { db } from '../../db'
 import { useNavigate } from 'react-router-dom'
 import type { Card } from '../../types'
 import { ReviewModal } from '../../shared/ReviewModal'
+import { getFolderColor } from '../../utils'
 
 export function AllCardsPage() {
   const navigate = useNavigate()
@@ -47,7 +48,6 @@ export function AllCardsPage() {
   }).sort((a, b) => b.due - a.due)
 
   const dueCount = filteredCards.filter(c => c.due <= Date.now()).length
-
   const formatDate = (ts: number) => new Date(ts).toLocaleDateString()
 
   const toggleTag = (tag: string) => {
@@ -91,70 +91,91 @@ export function AllCardsPage() {
     return s.folder_id === filterFolder
   })
 
+  // Pill Component
+  const Pill = ({ active, onClick, children, color }: any) => (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '0.4rem 0.8rem',
+        borderRadius: '16px',
+        background: active ? (color || '#0ea5e9') : '#1e293b',
+        border: `1px solid ${active ? (color || '#0ea5e9') : '#475569'}`,
+        color: active ? '#fff' : '#94a3b8',
+        cursor: 'pointer',
+        fontSize: '0.85rem',
+        fontWeight: active ? 'bold' : 'normal',
+        transition: '0.2s',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.4rem'
+      }}
+    >
+      {children}
+    </button>
+  )
+
   return (
     <div style={{ maxWidth: '900px' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
         <h1 style={{ margin: 0 }}>All Flashcards</h1>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input 
-            type="text" placeholder="Search words..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ padding: '0.6rem 1rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', width: '200px' }}
-          />
-          <button 
-            onClick={openReviewModal}
-            disabled={dueCount === 0}
-            style={{ padding: '0.6rem 1.2rem', background: dueCount > 0 ? '#8b5cf6' : '#334155', color: '#fff', border: 'none', borderRadius: '8px', cursor: dueCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}
-          >
+          <input type="text" placeholder="Search words..." value={search} onChange={e => setSearch(e.target.value)} style={{ padding: '0.6rem 1rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', width: '200px' }} />
+          <button onClick={openReviewModal} disabled={dueCount === 0} style={{ padding: '0.6rem 1.2rem', background: dueCount > 0 ? '#8b5cf6' : '#334155', color: '#fff', border: 'none', borderRadius: '8px', cursor: dueCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}>
             🎴 Start Review ({dueCount})
           </button>
         </div>
       </div>
 
-      {/* Filters Panel */}
-      <div style={{ background: '#1e293b', padding: '1.2rem', borderRadius: '8px', border: '1px solid #334155', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-        <label style={{ flex: '1 1 150px', minWidth: '150px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.3rem' }}>Folder</div>
-          <select value={filterFolder} onChange={e => { setFilterFolder(e.target.value); setFilterSet('all') }} style={{ width: '100%', padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px' }}>
-            <option value="all">All Folders</option>
-            <option value="null">Uncategorized</option>
-            {folders.filter(f => f.parent_id === null).map(f => (
-              <option key={f.id} value={f.id}>{folderMap.get(f.id)?.name}</option>
-            ))}
-          </select>
-        </label>
-
-        <label style={{ flex: '1 1 150px', minWidth: '150px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.3rem' }}>Set</div>
-          <select value={filterSet} onChange={e => setFilterSet(e.target.value)} style={{ width: '100%', padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px' }}>
-            <option value="all">All Sets</option>
-            {setsForFolder.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-          </select>
-        </label>
-      </div>
-
-      {/* Tag Chips */}
-      {allTags.length > 0 && (
-        <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Filter by Tags (multi-select):</div>
+      {/* Hierarchical Filters */}
+      <div style={{ background: '#1e293b', padding: '1.2rem', borderRadius: '8px', border: '1px solid #334155', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        
+        {/* Folders Row */}
+        <div>
+          <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Filter by Folder:</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-            {allTags.map(tag => {
-              const isActive = filterTags.includes(tag)
-              return (
-                <button 
-                  key={tag}
-                  onClick={() => toggleTag(tag)}
-                  style={{ padding: '0.3rem 0.7rem', background: isActive ? '#0ea5e9' : '#1e293b', border: '1px solid ' + (isActive ? '#0ea5e9' : '#475569'), color: '#fff', borderRadius: '16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: isActive ? 'bold' : 'normal' }}
-                >
-                  #{tag}
-                </button>
-              )
-            })}
-            {filterTags.length > 0 && (
-              <button onClick={() => setFilterTags([])} style={{ padding: '0.3rem 0.7rem', background: 'transparent', border: '1px dashed #64748b', color: '#94a3b8', borderRadius: '16px', cursor: 'pointer', fontSize: '0.85rem' }}>Clear tags</button>
-            )}
+            <Pill active={filterFolder === 'all'} onClick={() => { setFilterFolder('all'); setFilterSet('all') }}>All Folders</Pill>
+            <Pill active={filterFolder === 'null'} onClick={() => { setFilterFolder('null'); setFilterSet('all') }}>Uncategorized</Pill>
+            {folders.filter(f => f.parent_id === null).map(f => (
+              <Pill key={f.id} active={filterFolder === f.id} onClick={() => { setFilterFolder(f.id); setFilterSet('all') }} color={getFolderColor(f.id)}>
+                {f.name}
+              </Pill>
+            ))}
           </div>
         </div>
-      )}
+
+        {/* Sets Sub-Row */}
+        <div style={{ marginLeft: '1rem', paddingLeft: '1rem', borderLeft: '2px solid #334155' }}>
+          <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Filter by Set:</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            <Pill active={filterSet === 'all'} onClick={() => setFilterSet('all')}>All Sets</Pill>
+            {setsForFolder.map(s => (
+              <Pill key={s.id} active={filterSet === s.id} onClick={() => setFilterSet(s.id)}>
+                {s.title}
+              </Pill>
+            ))}
+          </div>
+        </div>
+
+        {/* Tags Row */}
+        {allTags.length > 0 && (
+          <div style={{ borderTop: '1px solid #334155', paddingTop: '1rem' }}>
+            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Filter by Tags:</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {allTags.map(tag => {
+                const isActive = filterTags.includes(tag)
+                return (
+                  <Pill key={tag} active={isActive} onClick={() => toggleTag(tag)} color="#0ea5e9">
+                    #{tag}
+                  </Pill>
+                )
+              })}
+              {filterTags.length > 0 && (
+                <button onClick={() => setFilterTags([])} style={{ padding: '0.4rem 0.8rem', background: 'transparent', border: '1px dashed #64748b', color: '#94a3b8', borderRadius: '16px', cursor: 'pointer', fontSize: '0.85rem' }}>Clear tags</button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1rem' }}>
         Showing {filteredCards.length} cards ({dueCount} due now)
