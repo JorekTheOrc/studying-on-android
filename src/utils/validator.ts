@@ -72,8 +72,18 @@ export function validateImportedSet(jsonString: string): ValidationResult {
       if (!item.id || allIds.has(item.id)) errors.push(`${itemPrefix}: Missing or duplicate id`)
       else allIds.add(item.id)
 
-      if (!Array.isArray(item.answer)) {
+      // Only some types require the 'answer' array
+      const typesWithAnswer = ['multiple_choice', 'true_false_ng', 'sentence_completion', 'fill_blank', 'short_answer', 'translation']
+      if (typesWithAnswer.includes(ex.type) && !Array.isArray(item.answer)) {
         errors.push(`${itemPrefix}: 'answer' must be an array`)
+      }
+      
+      if (ex.type === 'ordering' && !Array.isArray(item.correct_order)) {
+        errors.push(`${itemPrefix}: 'correct_order' must be an array`)
+      }
+      
+      if (ex.type === 'matching' && !Array.isArray(item.pairs)) {
+        errors.push(`${itemPrefix}: 'pairs' must be an array`)
       }
 
       // Type-specific validations
