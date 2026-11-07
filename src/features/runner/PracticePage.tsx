@@ -34,6 +34,7 @@ export function PracticePage() {
   const [status, setStatus] = useState<'idle' | 'correct' | 'incorrect'>('idle')
   const [startTime, setStartTime] = useState(Date.now())
   const [showTheory, setShowTheory] = useState(false)
+  const [showHint, setShowHint] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
   const [attemptCount, setAttemptCount] = useState(0)
 
@@ -52,6 +53,7 @@ export function PracticePage() {
     setUserAnswer('')
     setViewedWords([])
     setStatus('idle')
+    setShowHint(false)
   }, [currentIndex, exercise, isFinished])
 
   useEffect(() => {
@@ -69,6 +71,30 @@ export function PracticePage() {
   if (!exercise || !set) return <p>Loading exercise...</p>
   
   const item = exercise.items[currentIndex]
+
+  const saveViewedWordsToCards = async () => {
+    if (!item.vocabulary && !item.options) return
+    const vocabMap = new Map<string, string>()
+    item.vocabulary?.forEach(v => vocabMap.set(v.text, v.translation))
+    item.options?.forEach(o => o.vocabulary?.forEach(v => vocabMap.set(v.text, v.translation)))
+
+    const newCards = viewedWords.map(word => ({
+      id: generateUUID(),
+      set_id: setId!,
+      front: word,
+      back: vocabMap.get(word) || 'Translation missing',
+      tags: [set?.topic || 'General'],
+      due: Date.now(),
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      lapses: 0
+    }))
+    
+    await db.cards.bulkAdd(newCards)
+    alert(`Added ${viewedWords.length} cards to your deck!`)
+    setViewedWords([]) // Clear so button disappears
+  }
 
   const handleWordClick = (word: string) => {
     if (!viewedWords.includes(word)) {
@@ -175,8 +201,11 @@ export function PracticePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <Link to={`/runner/${setId}`} style={{ color: '#94a3b8', textDecoration: 'none' }}>← Quit</Link>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {item.hint && (
+            <button onClick={() => setShowHint(!showHint)} style={{ padding: '0.4rem 1rem', background: '#eab308', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>Hint 💡</button>
+          )}
           {set.theory_md && (
-            <button onClick={() => setShowTheory(true)} style={{ padding: '0.4rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>Theory 💡</button>
+            <button onClick={() => setShowTheory(true)} style={{ padding: '0.4rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>Theory 📖</button>
           )}
           <span style={{ color: '#94a3b8' }}>Item {currentIndex + 1} of {exercise.items.length}</span>
         </div>
@@ -197,6 +226,12 @@ export function PracticePage() {
           <InteractiveText text={item.prompt} vocabulary={item.vocabulary} onWordClick={handleWordClick} />
         </h2>
       )}
+      {showHint && item.hint && (
+        <div style={{ padding: '1rem', background: '#1e293b', borderLeft: '4px solid #eab308', borderRadius: '4px', marginBottom: '1.5rem', color: '#fef08a' }}>
+          <strong>Hint:</strong> {item.hint}
+        </div>
+      )}
+
       {exercise.type === 'matching' && <h3 style={{ marginBottom: '1.5rem' }}>Match the items:</h3>}
       {exercise.type === 'ordering' && <h3 style={{ marginBottom: '1.5rem' }}>Put the words in the correct order:</h3>}
 
@@ -285,6 +320,15 @@ export function PracticePage() {
         <div style={{ marginTop: '2rem', padding: '1.5rem', borderRadius: '8px', background: status === 'correct' ? '#14532d' : '#7f1d1d', border: '1px solid ' + (status === 'correct' ? '#22c55e' : '#ef4444') }}>
           <h3 style={{ marginTop: 0, color: status === 'correct' ? '#86efac' : '#fca5a5' }}>{status === 'correct' ? '✓ Correct!' : '✗ Incorrect'}</h3>
           {status === 'incorrect' && <p style={{ color: '#fecaca', margin: '0.5rem 0' }}>Correct answer: <strong>{exercise.type === 'ordering' ? item.correct_order?.join(' ') : exercise.type === 'matching' ? item.pairs?.map(p => `${p.left}→${p.right}`).join('; ') : String(item.answer[0])}</strong></p>}
+          
+          {viewedWords.length > 0 && (
+            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #475569' }}>
+              <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#cbd5e1' }}>You looked up: <strong>{viewedWords.join(', ')}</strong></p>
+              <button onClick={saveViewedWordsToCards} style={{ padding: '0.5rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                + Add to Flashcards
+              </button>
+            </div>
+          )}
         </div>
       )}
 
