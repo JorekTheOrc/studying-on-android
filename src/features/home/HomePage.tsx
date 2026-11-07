@@ -45,10 +45,12 @@ export function HomePage() {
   const createFolder = async () => {
     const name = prompt("Enter folder name (e.g., Spanish, Math):")
     if (!name) return
-    await db.folders.add({
-      id: generateUUID(), name, parent_id: null, kind: 'custom', icon: '📁',
+    const newFolder = {
+      id: generateUUID(), name, parent_id: null, kind: 'custom' as const, icon: '📁',
       created_at: Date.now(), updated_at: Date.now()
-    })
+    }
+    await db.folders.add(newFolder)
+    setEditFolder(newFolder.id) // Auto-select the newly created folder
   }
 
   return (
@@ -119,15 +121,29 @@ export function HomePage() {
           <div style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%' }}>
             <h2 style={{ marginTop: 0 }}>Edit Set: {editingSet.title}</h2>
             
-            <label style={{ display: 'block', marginBottom: '1rem' }}>
-              Folder
-              <select value={editFolder} onChange={e => setEditFolder(e.target.value)} style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', marginTop: '0.5rem' }}>
-                <option value="null">-- Uncategorized --</option>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ color: '#94a3b8' }}>Select Folder</span>
+                <button onClick={createFolder} style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>+ New Folder</button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <button 
+                  onClick={() => setEditFolder('null')}
+                  style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === 'null' ? '#38bdf8' : '#475569'), background: editFolder === 'null' ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer', transition: '0.2s' }}
+                >
+                  Uncategorized
+                </button>
                 {folders.filter(f => f.parent_id === null).map(f => (
-                  <option key={f.id} value={f.id}>{f.name}</option>
+                  <button 
+                    key={f.id}
+                    onClick={() => setEditFolder(f.id)}
+                    style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === f.id ? '#38bdf8' : '#475569'), background: editFolder === f.id ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer', transition: '0.2s' }}
+                  >
+                    {f.icon} {f.name}
+                  </button>
                 ))}
-              </select>
-            </label>
+              </div>
+            </div>
 
             <label style={{ display: 'block', marginBottom: '1.5rem' }}>
               Tags (comma separated)
