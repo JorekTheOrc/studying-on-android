@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { generateUUID } from '../../utils'
 
 export function PracticePage() {
   const { setId, exerciseId } = useParams()
-  const navigate = useNavigate()
   
   const exercise = useLiveQuery(() => exerciseId ? db.exercises.get(exerciseId) : undefined, [exerciseId])
   const set = useLiveQuery(() => setId ? db.sets.get(setId) : undefined, [setId])

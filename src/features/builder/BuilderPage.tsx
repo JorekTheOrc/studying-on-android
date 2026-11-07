@@ -47,9 +47,9 @@ export function BuilderPage() {
       const index = newPlans.findIndex(p => p.type === type)
       
       if (index >= 0) {
-        newPlans[index] = { ...newPlans[index], [field]: parsedValue }
+        newPlans[index] = { ...newPlans[index], [field]: parsedValue as any }
       } else {
-        newPlans.push({ ...existing, [field]: parsedValue } as any)
+        newPlans.push({ ...existing, [field]: parsedValue as any })
       }
       return { ...prev, plans: newPlans }
     })
