@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { VocabItem } from '../types'
 
 interface Props {
@@ -10,6 +10,18 @@ interface Props {
 
 export function InteractiveText({ text, vocabulary, onWordClick, style }: Props) {
   const [activeWord, setActiveWord] = useState<string | null>(null)
+  const containerRef = useRef<HTMLSpanElement>(null)
+
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setActiveWord(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   if (!vocabulary || vocabulary.length === 0) return <span style={style}>{text}</span>
 
@@ -21,7 +33,7 @@ export function InteractiveText({ text, vocabulary, onWordClick, style }: Props)
   const parts = text.split(regex)
 
   return (
-    <span style={style}>
+    <span ref={containerRef} style={style}>
       {parts.map((part, i) => {
         const match = sortedVocab.find(v => v.text.toLowerCase() === part.toLowerCase())
         if (match) {
@@ -46,7 +58,7 @@ export function InteractiveText({ text, vocabulary, onWordClick, style }: Props)
                   style={{
                     position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
                     background: '#1e293b', color: '#fff', padding: '0.6rem 1rem', borderRadius: '8px',
-                    fontSize: '0.9rem', zIndex: 100, border: '1px solid #475569',
+                    fontSize: '0.9rem', zIndex: 9999, border: '1px solid #475569',
                     boxShadow: '0 4px 6px -1px rgba(0,0,0,0.5)', marginBottom: '0.5rem',
                     display: 'flex', flexDirection: 'column', gap: '0.3rem', whiteSpace: 'nowrap'
                   }}
