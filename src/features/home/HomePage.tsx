@@ -49,6 +49,15 @@ export function HomePage() {
     setIsSelectionMode(false)
   }
 
+  const handleReviewCards = () => {
+    const params = new URLSearchParams()
+    if (selectedFolder !== 'all') {
+      if (selectedFolder === 'null') params.set('uncategorized', 'true')
+      else params.set('folderId', selectedFolder)
+    }
+    navigate(`/review?${params.toString()}`)
+  }
+
   const openEditModal = (set: Set) => {
     setEditingSet(set)
     setEditFolder(set.folder_id || 'null')
@@ -74,9 +83,14 @@ export function HomePage() {
     setEditFolder(newFolder.id)
   }
 
+  const currentFolderName = selectedFolder === 'all' ? 'All' :
+    selectedFolder === 'null' ? 'Uncategorized' :
+    folders.find(f => f.id === selectedFolder)?.name || ''
+
   return (
     <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap', paddingBottom: selectedSets.length > 0 ? '80px' : '0' }}>
       
+      {/* Sidebar: Folders */}
       <div style={{ width: '220px', background: '#1e293b', borderRadius: '8px', padding: '1rem', border: '1px solid #334155', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h3 style={{ margin: 0, color: '#e2e8f0' }}>Folders</h3>
@@ -99,15 +113,22 @@ export function HomePage() {
         </div>
       </div>
 
+      {/* Main Content */}
       <div style={{ flex: 1, minWidth: '300px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <h1 style={{ margin: 0 }}>My Sets</h1>
             <button 
               onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedSets([]); }} 
-              style={{ padding: '0.4rem 1rem', background: isSelectionMode ? '#ef4444' : '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+              style={{ padding: '0.4rem 1rem', background: isSelectionMode ? '#ef4444' : '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
             >
-              {isSelectionMode ? 'Cancel Selection' : 'Select'}
+              {isSelectionMode ? 'Cancel' : 'Move set(s)'}
+            </button>
+            <button 
+              onClick={handleReviewCards}
+              style={{ padding: '0.4rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
+            >
+              🎴 Review {currentFolderName} Cards
             </button>
           </div>
           <input 
@@ -126,24 +147,29 @@ export function HomePage() {
               const folderColor = getFolderColor(set.folder_id)
               const isSelected = selectedSets.includes(set.id)
               return (
-                <div key={set.id} style={{ 
-                  padding: '1.5rem', background: '#1e293b', 
-                  border: '1px solid ' + (isSelected ? '#0ea5e9' : '#334155'), 
-                  borderLeft: `6px solid ${folderColor}`,
-                  borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem',
-                  transition: '0.2s'
-                }}>
+                <div 
+                  key={set.id} 
+                  onClick={() => isSelectionMode ? toggleSelection(set.id) : navigate(`/runner/${set.id}`)}
+                  style={{ 
+                    padding: '1.5rem', background: '#1e293b', 
+                    border: '1px solid ' + (isSelected ? '#0ea5e9' : '#334155'), 
+                    borderLeft: `6px solid ${folderColor}`,
+                    borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem',
+                    transition: '0.2s', cursor: 'pointer'
+                  }}
+                >
                   {isSelectionMode && (
                     <input 
                       type="checkbox" 
                       checked={isSelected}
                       onChange={() => toggleSelection(set.id)}
+                      onClick={e => e.stopPropagation()}
                       style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9' }}
                     />
                   )}
 
-                  <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => !isSelectionMode && navigate(`/runner/${set.id}`)}>
-                    <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8', textDecoration: 'none' }} onMouseOver={e => e.currentTarget.style.textDecoration = 'underline'} onMouseOut={e => e.currentTarget.style.textDecoration = 'none'}>{set.title}</h3>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>{set.title}</h3>
                     <div style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
                       Topic: {set.topic || 'N/A'} | Level: {set.level || 'N/A'}
                     </div>
@@ -154,7 +180,7 @@ export function HomePage() {
                     )}
                   </div>
                   
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }} onClick={e => e.stopPropagation()}>
                     <button onClick={() => openEditModal(set)} style={{ padding: '0.5rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
                     <button onClick={() => navigate(`/runner/${set.id}`)} style={{ padding: '0.5rem 1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Open</button>
                   </div>
@@ -173,7 +199,6 @@ export function HomePage() {
           zIndex: 900, boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.1)'
         }}>
           <span style={{ fontWeight: 'bold', color: '#38bdf8' }}>{selectedSets.length} selected</span>
-          
           <select 
             onChange={(e) => handleBulkMove(e.target.value === 'null' ? null : e.target.value)}
             defaultValue=""
@@ -185,34 +210,30 @@ export function HomePage() {
               <option key={f.id} value={f.id}>{f.name}</option>
             ))}
           </select>
-
           <button onClick={() => setSelectedSets([])} style={{ padding: '0.6rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Clear</button>
         </div>
       )}
 
       {editingSet && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%' }}>
+        <div onClick={() => setEditingSet(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%' }}>
             <h2 style={{ marginTop: 0 }}>Edit Set: {editingSet.title}</h2>
-            
             <div style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                 <span style={{ color: '#94a3b8' }}>Select Folder</span>
                 <button onClick={createFolder} style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>+ New Folder</button>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <button onClick={() => setEditFolder('null')} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === 'null' ? '#38bdf8' : '#475569'), background: editFolder === 'null' ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer', transition: '0.2s' }}>Uncategorized</button>
+                <button onClick={() => setEditFolder('null')} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === 'null' ? '#38bdf8' : '#475569'), background: editFolder === 'null' ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer' }}>Uncategorized</button>
                 {folders.filter(f => f.parent_id === null).map(f => (
-                  <button key={f.id} onClick={() => setEditFolder(f.id)} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === f.id ? '#38bdf8' : '#475569'), background: editFolder === f.id ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer', transition: '0.2s' }}>{f.icon} {f.name}</button>
+                  <button key={f.id} onClick={() => setEditFolder(f.id)} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === f.id ? '#38bdf8' : '#475569'), background: editFolder === f.id ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer' }}>{f.icon} {f.name}</button>
                 ))}
               </div>
             </div>
-
             <label style={{ display: 'block', marginBottom: '1.5rem' }}>
               Tags (comma separated)
               <input type="text" value={editTags} onChange={e => setEditTags(e.target.value)} placeholder="e.g. grammar, A2, listening" style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', marginTop: '0.5rem' }} />
             </label>
-
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button onClick={() => setEditingSet(null)} style={{ flex: 1, padding: '0.8rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
               <button onClick={saveEdit} style={{ flex: 1, padding: '0.8rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>

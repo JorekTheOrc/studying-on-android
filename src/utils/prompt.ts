@@ -40,29 +40,20 @@ Exercise:
       | "fill_blank" | "matching" | "ordering" | "short_answer" | "translation"
   title: string
   instruction: one-sentence string
+  tags: [string, ...]  // 1-3 descriptive tags (e.g. "grammar", "listening", "A2", "verbs")
   items: [<Item>, ...]
 
 Item shapes by type:
-
 multiple_choice:
-  { "id", "prompt": string, 
-    "vocabulary"?: [{"text": "<exact substring>", "translation": "<in NATIVE_LANG>"}],
-    "options": [
-      {"id":"a","text":"...", "vocabulary"?: [{"text": "...", "translation": "..."}]}, 
-      ...3-4
-    ], 
+  { "id", "prompt": string, "vocabulary"?: [{"text": "<exact substring>", "translation": "<in NATIVE_LANG>"}],
+    "options": [{"id":"a","text":"...", "vocabulary"?: [{"text": "...", "translation": "..."}]}, ...3-4], 
     "answer": ["<option id>"], "hint"?, "translation"?, "explanation"? }
-
 true_false OR true_false_ng:
-  { "id", "prompt": string, "vocabulary"?: [...], 
-    "answer": ["T"|"F"|"NG"], "hint"?, "translation"?, "explanation"? }
-
+  { "id", "prompt": string, "vocabulary"?: [...], "answer": ["T"|"F"|"NG"], "hint"?, "translation"?, "explanation"? }
 sentence_completion / fill_blank / short_answer / translation:
   { "id", "prompt": string, "vocabulary"?: [...], "answer": ["<string>"], "alternatives"?: [...], "word_limit"?, "word_box"?, "hint"?, "translation"? }
-
 matching:
   { "id", "pairs": [{"left": string, "right": string}, ...], "hint"? }
-
 ordering:
   { "id", "tokens": [string, ...], "correct_order": [string, ...], "hint"?, "translation"? }
 
@@ -95,6 +86,7 @@ Card:
 9. \`fill_blank\`: number of \`___\` in \`prompt\` equals number of strings in \`answer\`.
 10. WORD_LIST (if used): every word from the list must appear exactly once. No invented words.
 11. Minified JSON only (no spaces, no newlines). No extra fields.
+12. **Every exercise MUST have a "tags" array with 1-3 descriptive tags** (e.g., ["listening", "A2"]).
 
 === SELF-CHECK (do silently before output) ===
 - multiple_choice: every \`answer\` id exists in options.
@@ -104,6 +96,7 @@ Card:
 - ordering: sorted(correct_order) == sorted(tokens).
 - fill_blank: ___ count == len(answer).
 - vocabulary: text matches exactly.
+- every exercise has "tags" array.
 - ids: no duplicates anywhere.
 
 Output only the JSON object. Nothing else.`
