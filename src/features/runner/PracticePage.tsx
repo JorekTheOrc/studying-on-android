@@ -23,12 +23,31 @@ export function PracticePage() {
   })
 
   const [userAnswer, setUserAnswer] = useState<any>('')
+  const [matchingSelections, setMatchingSelections] = useState<Record<string, string>>({})
+  const [orderedTokens, setOrderedTokens] = useState<string[]>([])
+  const [availableTokens, setAvailableTokens] = useState<string[]>([])
+
   const [status, setStatus] = useState<'idle' | 'correct' | 'incorrect'>('idle')
   const [startTime, setStartTime] = useState(Date.now())
   
   const [showTheory, setShowTheory] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
   const [attemptCount, setAttemptCount] = useState(0)
+
+  // Reset states when item changes
+  useEffect(() => {
+    if (!exercise) return
+    const item = exercise.items[currentIndex]
+    if (!item) return
+
+    if (exercise.type === 'ordering' && item.tokens) {
+      // Shuffle tokens for the available pool
+      setAvailableTokens([...item.tokens].sort(() => Math.random() - 0.5))
+      setOrderedTokens([])
+    } else if (exercise.type === 'matching') {
+      setMatchingSelections({})
+    }
+  }, [currentIndex, exercise])
 
   // Save progress to localStorage
   useEffect(() => {
@@ -38,10 +57,9 @@ export function PracticePage() {
 
   // Count attempts from DB
   useEffect(() => {
-    if (!exerciseId) return
+    if (!exerciseId || !exercise?.items.length) return
     db.progress.where('item_id').startsWith(exerciseId).count().then(c => {
-      // rough estimate: divide by number of items
-      if (exercise?.items.length) setAttemptCount(Math.floor(c / exercise.items.length))
+      setAttemptCount(Math.floor(c / exercise.items.length))
     })
   }, [exerciseId, exercise?.items.length])
 
@@ -53,23 +71,35 @@ export function PracticePage() {
     let isCorrect = false
     const correctAnswer = item.answer[0]
     const normalize = (s: any) => String(s).toLowerCase().trim()
+    let answerToSave = userAnswer
 
     if (exercise.type === 'multiple_choice' || exercise.type === 'true_false_ng') {
       isCorrect = userAnswer === correctAnswer
-    } else if (['fill_blank', 'short_answer', 'sentence_completion'].includes(exercise.type)) {
+    } 
+    else if (['fill_blank', 'short_answer', 'sentence_completion'].includes(exercise.type)) {
       const validAnswers = [correctAnswer, ...(item.alternatives || [])].map(normalize)
       isCorrect = validAnswers.includes(normalize(userAnswer))
+    }
+    else if (exercise.type === 'matching') {
+      let allMatch = true
+      item.pairs?.forEach(p => {
+        if (matchingSelections[p.left] !== p.right) allMatch = false
+      })
+      isCorrect = allMatch && Object.keys(matchingSelections).length === item.pairs?.length
+      answerToSave = Object.entries(matchingSelections).map(([k, v]) => `${k} → ${v}`).join('; ')
+    }
+    else if (exercise.type === 'ordering') {
+      isCorrect = orderedTokens.join(' ') === item.correct_order?.join(' ')
+      answerToSave = orderedTokens.join(' ')
     }
 
     setStatus(isCorrect ? 'correct' : 'incorrect')
     
-    // Save session state
     setSessionAnswers(prev => ({
       ...prev,
-      [item.id]: { answer: userAnswer, isCorrect }
+      [item.id]: { answer: answerToSave, isCorrect }
     }))
 
-    // Save to Dexie
     await db.progress.add({
       id: generateUUID(), set_id: setId!, item_id: item.id,
       correct: isCorrect, used_hint: false, used_translation: false,
@@ -87,6 +117,12 @@ export function PracticePage() {
       setStatus('idle')
       setStartTime(Date.now())
     }
+  }
+
+  const isAnswerProvided = () => {
+    if (exercise.type === 'matching') return Object.keys(matchingSelections).length === item.pairs?.length
+    if (exercise.type === 'ordering') return orderedTokens.length === item.tokens?.length
+    return !!userAnswer
   }
 
   // --- RENDER: RESULTS SCREEN ---
@@ -109,10 +145,10 @@ export function PracticePage() {
              const ans = sessionAnswers[it.id]
              return (
                <div key={it.id} style={{ padding: '1rem', background: '#1e293b', borderLeft: `4px solid ${ans?.isCorrect ? '#22c55e' : '#ef4444'}`, borderRadius: '4px' }}>
-                 <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{idx + 1}. {it.prompt}</div>
+                 <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{idx + 1}. {it.prompt || 'Matching/Ordering Task'}</div>
                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                   <span style={{ color: ans?.isCorrect ? '#86efac' : '#fca5a5' }}>Your answer: {String(ans?.answer || 'Skipped')}</span>
-                   {!ans?.isCorrect && <span style={{ color: '#86efac' }}>Correct: {String(it.answer[0])}</span>}
+                   <span style={{ color: ans?.isCorrect ? '#86efac' : '#fca5a5', maxWidth: '60%' }}>You: {String(ans?.answer || 'Skipped')}</span>
+                   {!ans?.isCorrect && <span style={{ color: '#86efac', maxWidth: '40%' }}>Correct: {it.correct_order?.join(' ') || it.pairs?.map(p => `${p.left}→${p.right}`).join('; ')}</span>}
                  </div>
                </div>
              )
@@ -130,7 +166,6 @@ export function PracticePage() {
   // --- RENDER: QUESTION SCREEN ---
   return (
     <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-      {/* Header with Theory Button */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <Link to={`/runner/${setId}`} style={{ color: '#94a3b8', textDecoration: 'none' }}>← Quit</Link>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -141,7 +176,6 @@ export function PracticePage() {
         </div>
       </div>
 
-      {/* Theory Modal */}
       {showTheory && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
           <div style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto', width: '100%' }}>
@@ -152,7 +186,9 @@ export function PracticePage() {
         </div>
       )}
 
-      <h2 style={{ fontSize: '1.8rem', lineHeight: 1.4, marginBottom: '2rem' }}>{item.prompt}</h2>
+      {item.prompt && <h2 style={{ fontSize: '1.8rem', lineHeight: 1.4, marginBottom: '2rem' }}>{item.prompt}</h2>}
+      {exercise.type === 'matching' && <h3 style={{ marginBottom: '1.5rem' }}>Match the items:</h3>}
+      {exercise.type === 'ordering' && <h3 style={{ marginBottom: '1.5rem' }}>Put the words in the correct order:</h3>}
 
       {/* Renderers */}
       {exercise.type === 'multiple_choice' && (
@@ -192,16 +228,60 @@ export function PracticePage() {
         </div>
       )}
 
+      {exercise.type === 'matching' && item.pairs && (
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          {item.pairs.map(pair => (
+            <div key={pair.left} style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: '#1e293b', padding: '1rem', borderRadius: '8px' }}>
+              <span style={{ flex: 1, fontWeight: 'bold' }}>{pair.left}</span>
+              <span style={{ color: '#64748b' }}>→</span>
+              <select
+                disabled={status !== 'idle'}
+                value={matchingSelections[pair.left] || ''}
+                onChange={(e) => setMatchingSelections(prev => ({ ...prev, [pair.left]: e.target.value }))}
+                style={{ flex: 1, padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', fontSize: '1rem' }}
+              >
+                <option value="">-- Select --</option>
+                {item.pairs?.map(p => <option key={p.right} value={p.right}>{p.right}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {exercise.type === 'ordering' && item.tokens && (
+        <div>
+          <div style={{ minHeight: '60px', background: '#0f172a', border: '1px dashed #475569', borderRadius: '8px', padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem', alignContent: 'flex-start' }}>
+            {orderedTokens.length === 0 && <span style={{ color: '#64748b' }}>Click words below to build the sentence...</span>}
+            {orderedTokens.map((token, i) => (
+              <button key={`sel-${i}`} onClick={() => {
+                if (status !== 'idle') return
+                setOrderedTokens(prev => prev.filter((_, idx) => idx !== i))
+                setAvailableTokens(prev => [...prev, token])
+              }} style={{ padding: '0.5rem 1rem', background: '#0ea5e9', border: 'none', color: '#fff', borderRadius: '4px', cursor: status === 'idle' ? 'pointer' : 'default', fontSize: '1rem' }}>{token}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            {availableTokens.map((token, i) => (
+              <button key={`av-${i}`} onClick={() => {
+                if (status !== 'idle') return
+                setOrderedTokens(prev => [...prev, token])
+                setAvailableTokens(prev => prev.filter((_, idx) => idx !== i))
+              }} style={{ padding: '0.5rem 1rem', background: '#334155', border: 'none', color: '#fff', borderRadius: '4px', cursor: status === 'idle' ? 'pointer' : 'default', fontSize: '1rem' }}>{token}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {status !== 'idle' && (
         <div style={{ marginTop: '2rem', padding: '1.5rem', borderRadius: '8px', background: status === 'correct' ? '#14532d' : '#7f1d1d', border: '1px solid ' + (status === 'correct' ? '#22c55e' : '#ef4444') }}>
           <h3 style={{ marginTop: 0, color: status === 'correct' ? '#86efac' : '#fca5a5' }}>{status === 'correct' ? '✓ Correct!' : '✗ Incorrect'}</h3>
-          {status === 'incorrect' && <p style={{ color: '#fecaca', margin: '0.5rem 0' }}>Correct answer: <strong>{String(item.answer[0])}</strong></p>}
+          {status === 'incorrect' && <p style={{ color: '#fecaca', margin: '0.5rem 0' }}>Correct answer: <strong>{exercise.type === 'ordering' ? item.correct_order?.join(' ') : exercise.type === 'matching' ? item.pairs?.map(p => `${p.left}→${p.right}`).join('; ') : String(item.answer[0])}</strong></p>}
         </div>
       )}
 
       <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
         {status === 'idle' ? (
-          <button onClick={checkAnswer} disabled={!userAnswer} style={{ padding: '0.8rem 2rem', background: userAnswer ? '#0ea5e9' : '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: userAnswer ? 'pointer' : 'not-allowed' }}>Check</button>
+          <button onClick={checkAnswer} disabled={!isAnswerProvided()} style={{ padding: '0.8rem 2rem', background: isAnswerProvided() ? '#0ea5e9' : '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: isAnswerProvided() ? 'pointer' : 'not-allowed' }}>Check</button>
         ) : (
           <button onClick={nextItem} style={{ padding: '0.8rem 2rem', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}>{currentIndex === exercise.items.length - 1 ? 'Finish' : 'Next →'}</button>
         )}
