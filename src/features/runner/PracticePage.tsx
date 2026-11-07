@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { generateUUID } from '../../utils'
 import { InteractiveText } from '../../shared/InteractiveText'
+import ReactMarkdown from 'react-markdown'
 
 export function PracticePage() {
   const { setId, exerciseId } = useParams()
@@ -33,6 +34,8 @@ export function PracticePage() {
   const [startTime, setStartTime] = useState(Date.now())
   const [showTheory, setShowTheory] = useState(false)
   const [showHint, setShowHint] = useState(false)
+  const [showCardModal, setShowCardModal] = useState(false)
+  const [selectedWords, setSelectedWords] = useState<string[]>([])
   const [isFinished, setIsFinished] = useState(false)
   const [attemptCount, setAttemptCount] = useState(0)
 
@@ -70,13 +73,22 @@ export function PracticePage() {
   
   const item = exercise.items[currentIndex]
 
-  const saveViewedWordsToCards = async () => {
-    if (!item.vocabulary && !item.options) return
+  const openCardModal = () => {
+    setSelectedWords(viewedWords)
+    setShowCardModal(true)
+  }
+
+  const saveSelectedWords = async () => {
+    if (selectedWords.length === 0) {
+      setShowCardModal(false)
+      return
+    }
+
     const vocabMap = new Map<string, string>()
     item.vocabulary?.forEach(v => vocabMap.set(v.text, v.translation))
     item.options?.forEach(o => o.vocabulary?.forEach(v => vocabMap.set(v.text, v.translation)))
 
-    const newCards = viewedWords.map(word => ({
+    const newCards = selectedWords.map(word => ({
       id: generateUUID(),
       set_id: setId!,
       front: word,
@@ -90,7 +102,7 @@ export function PracticePage() {
     }))
     
     await db.cards.bulkAdd(newCards)
-    alert(`Added ${viewedWords.length} cards to your deck!`)
+    setShowCardModal(false)
     setViewedWords([])
   }
 
@@ -226,7 +238,9 @@ export function PracticePage() {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
           <div style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto', width: '100%' }}>
             <h2 style={{ marginTop: 0 }}>Theory</h2>
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{set.theory_md}</div>
+            <div style={{ lineHeight: 1.6, color: '#e2e8f0' }}>
+              <ReactMarkdown>{set.theory_md}</ReactMarkdown>
+            </div>
             <button onClick={() => setShowTheory(false)} style={{ marginTop: '1.5rem', padding: '0.8rem 1.5rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '100%', fontWeight: 'bold' }}>Close</button>
           </div>
         </div>
@@ -336,11 +350,75 @@ export function PracticePage() {
           {viewedWords.length > 0 && (
             <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #475569' }}>
               <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#cbd5e1' }}>You looked up: <strong>{viewedWords.join(', ')}</strong></p>
-              <button onClick={saveViewedWordsToCards} style={{ padding: '0.5rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
+              <button onClick={openCardModal} style={{ padding: '0.5rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
                 + Add to Flashcards
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Card Selection Modal */}
+      {showCardModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%' }}>
+            <h2 style={{ marginTop: 0 }}>Select words to save</h2>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Choose which looked-up words you want to add to your flashcards.</p>
+            
+            <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1.5rem' }}>
+              {viewedWords.map(word => (
+                <label key={word} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', background: '#0f172a', padding: '0.8rem', borderRadius: '4px', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedWords.includes(word)}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedWords(prev => [...prev, word])
+                      else setSelectedWords(prev => prev.filter(w => w !== word))
+                    }}
+                    style={{ width: '18px', height: '18px', accentColor: '#8b5cf6' }}
+                  />
+                  <span>{word}</span>
+                </label>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={() => setShowCardModal(false)} style={{ flex: 1, padding: '0.8rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
+              <button onClick={saveSelectedWords} style={{ flex: 1, padding: '0.8rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save Selected</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Card Selection Modal */}
+      {showCardModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%' }}>
+            <h2 style={{ marginTop: 0 }}>Select words to save</h2>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Choose which looked-up words you want to add to your flashcards.</p>
+            
+            <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1.5rem' }}>
+              {viewedWords.map(word => (
+                <label key={word} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', background: '#0f172a', padding: '0.8rem', borderRadius: '4px', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedWords.includes(word)}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedWords(prev => [...prev, word])
+                      else setSelectedWords(prev => prev.filter(w => w !== word))
+                    }}
+                    style={{ width: '18px', height: '18px', accentColor: '#8b5cf6' }}
+                  />
+                  <span>{word}</span>
+                </label>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={() => setShowCardModal(false)} style={{ flex: 1, padding: '0.8rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
+              <button onClick={saveSelectedWords} style={{ flex: 1, padding: '0.8rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save Selected</button>
+            </div>
+          </div>
         </div>
       )}
 
