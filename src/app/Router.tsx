@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createHashRouter, RouterProvider } from 'react-router-dom'
 import { Layout } from './Layout'
 import { HomePage } from '../features/home/HomePage'
 import { BuilderPage } from '../features/builder/BuilderPage'
@@ -8,7 +8,7 @@ import { RunnerPage } from '../features/runner/RunnerPage'
 import { PracticePage } from '../features/runner/PracticePage'
 import { FlashcardsPage } from '../features/flashcards/FlashcardsPage'
 
-const router = createBrowserRouter([
+const router = createHashRouter([
   {
     path: '/',
     element: <Layout />,

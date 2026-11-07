@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/studying-on-android/', // Required for GitHub Pages
   plugins: [
     react(),
     VitePWA({
@@ -15,8 +16,8 @@ export default defineConfig({
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
-        start_url: '/',
-        scope: '/',
+        start_url: '/studying-on-android/',
+        scope: '/studying-on-android/',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
@@ -30,12 +31,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        navigateFallback: '/index.html',
+        navigateFallback: '/studying-on-android/index.html',
         cleanupOutdatedCaches: true,
       },
-      devOptions: {
-        enabled: false,
-      },
+      devOptions: { enabled: false },
     }),
   ],
 })
