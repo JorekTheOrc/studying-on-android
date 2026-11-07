@@ -72,6 +72,7 @@ export interface Exercise {
   type: ExerciseType
   title: string
   instruction: string
+  tags?: string[] // <--- New field
   items: Item[]
 }
 

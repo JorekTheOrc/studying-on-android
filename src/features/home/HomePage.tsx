@@ -8,7 +8,7 @@ import { generateUUID } from '../../utils'
 const FOLDER_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#84cc16']
 
 function getFolderColor(id: string | null) {
-  if (!id) return '#64748b' // Uncategorized (slate)
+  if (!id) return '#64748b'
   let hash = 0
   for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
   return FOLDER_COLORS[Math.abs(hash) % FOLDER_COLORS.length]
@@ -22,10 +22,9 @@ export function HomePage() {
   const [selectedFolder, setSelectedFolder] = useState<string | 'all'>('all')
   const [search, setSearch] = useState('')
   
-  // Bulk Selection State
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedSets, setSelectedSets] = useState<string[]>([])
   
-  // Edit Modal State
   const [editingSet, setEditingSet] = useState<Set | null>(null)
   const [editFolder, setEditFolder] = useState('')
   const [editTags, setEditTags] = useState('')
@@ -47,6 +46,7 @@ export function HomePage() {
     if (selectedSets.length === 0) return
     await db.sets.where('id').anyOf(selectedSets).modify({ folder_id: folderId })
     setSelectedSets([])
+    setIsSelectionMode(false)
   }
 
   const openEditModal = (set: Set) => {
@@ -77,7 +77,6 @@ export function HomePage() {
   return (
     <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap', paddingBottom: selectedSets.length > 0 ? '80px' : '0' }}>
       
-      {/* Sidebar: Folders */}
       <div style={{ width: '220px', background: '#1e293b', borderRadius: '8px', padding: '1rem', border: '1px solid #334155', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h3 style={{ margin: 0, color: '#e2e8f0' }}>Folders</h3>
@@ -100,10 +99,17 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={{ flex: 1, minWidth: '300px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h1 style={{ margin: 0 }}>My Sets</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <h1 style={{ margin: 0 }}>My Sets</h1>
+            <button 
+              onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedSets([]); }} 
+              style={{ padding: '0.4rem 1rem', background: isSelectionMode ? '#ef4444' : '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              {isSelectionMode ? 'Cancel Selection' : 'Select'}
+            </button>
+          </div>
           <input 
             type="text" placeholder="Search sets or tags..." value={search} onChange={e => setSearch(e.target.value)}
             style={{ padding: '0.6rem 1rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', width: '250px' }}
@@ -113,7 +119,6 @@ export function HomePage() {
         {filteredSets.length === 0 ? (
           <div style={{ padding: '2rem', border: '1px dashed #475569', borderRadius: '8px', textAlign: 'center', color: '#94a3b8' }}>
             <h2 style={{ marginTop: 0, color: '#e2e8f0' }}>No sets found</h2>
-            <p>Create a prompt in Builder or Import a JSON.</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '1rem' }}>
@@ -122,22 +127,23 @@ export function HomePage() {
               const isSelected = selectedSets.includes(set.id)
               return (
                 <div key={set.id} style={{ 
-                  padding: '1.5rem', background: isSelected ? '#1e293b' : '#1e293b', 
+                  padding: '1.5rem', background: '#1e293b', 
                   border: '1px solid ' + (isSelected ? '#0ea5e9' : '#334155'), 
                   borderLeft: `6px solid ${folderColor}`,
                   borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem',
                   transition: '0.2s'
                 }}>
-                  {/* Selection Checkbox */}
-                  <input 
-                    type="checkbox" 
-                    checked={isSelected}
-                    onChange={() => toggleSelection(set.id)}
-                    style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9' }}
-                  />
+                  {isSelectionMode && (
+                    <input 
+                      type="checkbox" 
+                      checked={isSelected}
+                      onChange={() => toggleSelection(set.id)}
+                      style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9' }}
+                    />
+                  )}
 
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>{set.title}</h3>
+                  <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => !isSelectionMode && navigate(`/runner/${set.id}`)}>
+                    <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8', textDecoration: 'none' }} onMouseOver={e => e.currentTarget.style.textDecoration = 'underline'} onMouseOut={e => e.currentTarget.style.textDecoration = 'none'}>{set.title}</h3>
                     <div style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
                       Topic: {set.topic || 'N/A'} | Level: {set.level || 'N/A'}
                     </div>
@@ -159,7 +165,6 @@ export function HomePage() {
         )}
       </div>
 
-      {/* Bulk Action Bar */}
       {selectedSets.length > 0 && (
         <div style={{ 
           position: 'fixed', bottom: 0, left: 0, right: 0, 
@@ -181,11 +186,10 @@ export function HomePage() {
             ))}
           </select>
 
-          <button onClick={() => setSelectedSets([])} style={{ padding: '0.6rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => setSelectedSets([])} style={{ padding: '0.6rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Clear</button>
         </div>
       )}
 
-      {/* Edit Set Modal */}
       {editingSet && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
           <div style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%' }}>
@@ -197,20 +201,9 @@ export function HomePage() {
                 <button onClick={createFolder} style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>+ New Folder</button>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <button 
-                  onClick={() => setEditFolder('null')}
-                  style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === 'null' ? '#38bdf8' : '#475569'), background: editFolder === 'null' ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer', transition: '0.2s' }}
-                >
-                  Uncategorized
-                </button>
+                <button onClick={() => setEditFolder('null')} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === 'null' ? '#38bdf8' : '#475569'), background: editFolder === 'null' ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer', transition: '0.2s' }}>Uncategorized</button>
                 {folders.filter(f => f.parent_id === null).map(f => (
-                  <button 
-                    key={f.id}
-                    onClick={() => setEditFolder(f.id)}
-                    style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === f.id ? '#38bdf8' : '#475569'), background: editFolder === f.id ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer', transition: '0.2s' }}
-                  >
-                    {f.icon} {f.name}
-                  </button>
+                  <button key={f.id} onClick={() => setEditFolder(f.id)} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === f.id ? '#38bdf8' : '#475569'), background: editFolder === f.id ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer', transition: '0.2s' }}>{f.icon} {f.name}</button>
                 ))}
               </div>
             </div>

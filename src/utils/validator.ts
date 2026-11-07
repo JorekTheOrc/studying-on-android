@@ -2,7 +2,7 @@ import type { Set, Exercise, Card, Item, ExerciseType } from '../types'
 import { generateUUID } from './index'
 
 const VALID_TYPES: ExerciseType[] = [
-  'multiple_choice', 'true_false_ng', 'sentence_completion', 'fill_blank',
+  'multiple_choice', 'true_false', 'true_false_ng', 'sentence_completion', 'fill_blank',
   'matching', 'ordering', 'short_answer', 'translation'
 ]
 
@@ -15,7 +15,6 @@ export interface ValidationResult {
 export function validateImportedSet(jsonString: string): ValidationResult {
   const errors: string[] = []
   
-  // 1. Parse JSON
   let raw: any
   try {
     raw = JSON.parse(jsonString)
@@ -23,7 +22,6 @@ export function validateImportedSet(jsonString: string): ValidationResult {
     return { valid: false, errors: [`Invalid JSON syntax: ${e.message}`] }
   }
 
-  // 2. Basic structure
   if (!raw.set_id || typeof raw.set_id !== 'string') errors.push("Missing or invalid 'set_id'")
   if (!raw.title || typeof raw.title !== 'string') errors.push("Missing or invalid 'title'")
   if (!Array.isArray(raw.exercises)) errors.push("Missing or invalid 'exercises' array")
@@ -49,7 +47,6 @@ export function validateImportedSet(jsonString: string): ValidationResult {
   const cards: Card[] = []
   const allIds = new Set<string>()
 
-  // 3. Validate Exercises
   raw.exercises.forEach((ex: any, exIndex: number) => {
     if (!ex.id || allIds.has(ex.id)) errors.push(`Exercise ${exIndex + 1}: Missing or duplicate id`)
     else allIds.add(ex.id)
@@ -72,8 +69,7 @@ export function validateImportedSet(jsonString: string): ValidationResult {
       if (!item.id || allIds.has(item.id)) errors.push(`${itemPrefix}: Missing or duplicate id`)
       else allIds.add(item.id)
 
-      // Only some types require the 'answer' array
-      const typesWithAnswer = ['multiple_choice', 'true_false_ng', 'sentence_completion', 'fill_blank', 'short_answer', 'translation']
+      const typesWithAnswer = ['multiple_choice', 'true_false', 'true_false_ng', 'sentence_completion', 'fill_blank', 'short_answer', 'translation']
       if (typesWithAnswer.includes(ex.type) && !Array.isArray(item.answer)) {
         errors.push(`${itemPrefix}: 'answer' must be an array`)
       }
@@ -86,16 +82,13 @@ export function validateImportedSet(jsonString: string): ValidationResult {
         errors.push(`${itemPrefix}: 'pairs' must be an array`)
       }
 
-      // Type-specific validations
       if (ex.type === 'multiple_choice') {
         if (!Array.isArray(item.options) || item.options.length < 3) errors.push(`${itemPrefix}: Needs at least 3 options`)
         if (!item.options.find((o: any) => o.id === item.answer[0])) errors.push(`${itemPrefix}: Correct answer ID not found in options`)
       }
 
       if (ex.type === 'ordering') {
-        if (!Array.isArray(item.tokens) || !Array.isArray(item.correct_order)) {
-          errors.push(`${itemPrefix}: 'tokens' or 'correct_order' missing`)
-        } else {
+        if (Array.isArray(item.tokens) && Array.isArray(item.correct_order)) {
           const sortedTokens = [...item.tokens].sort()
           const sortedOrder = [...item.correct_order].sort()
           if (JSON.stringify(sortedTokens) !== JSON.stringify(sortedOrder)) {
@@ -105,21 +98,10 @@ export function validateImportedSet(jsonString: string): ValidationResult {
       }
 
       if (ex.type === 'fill_blank' || ex.type === 'sentence_completion') {
-        if (!item.prompt) {
-           errors.push(`${itemPrefix}: Missing 'prompt'`)
-        } else {
+        if (item.prompt) {
            const gapCount = (item.prompt.match(/___/g) || []).length
            if (gapCount !== item.answer.length) {
              errors.push(`${itemPrefix}: Prompt has ${gapCount} gaps (___), but 'answer' has ${item.answer.length} items`)
-           }
-        }
-        
-        // Word box check
-        if (item.word_box && item.word_box.length > 0) {
-           // Check if all answers are in word_box
-           const notInBox = item.answer.filter((ans: string) => !item.word_box.includes(ans))
-           if (notInBox.length > 0) {
-             errors.push(`${itemPrefix}: Answers [${notInBox.join(', ')}] are not in the provided word_box`)
            }
         }
       }
@@ -133,11 +115,11 @@ export function validateImportedSet(jsonString: string): ValidationResult {
       type: ex.type,
       title: ex.title || ex.type,
       instruction: ex.instruction || '',
+      tags: ex.tags || [], // <--- Save tags
       items: validItems
     })
   })
 
-  // 4. Validate Cards
   if (Array.isArray(raw.cards)) {
     raw.cards.forEach((c: any, i: number) => {
       if (!c.id || allIds.has(c.id)) errors.push(`Card ${i + 1}: Missing or duplicate id`)
@@ -161,9 +143,6 @@ export function validateImportedSet(jsonString: string): ValidationResult {
     })
   }
 
-  if (errors.length > 0) {
-    return { valid: false, errors }
-  }
-
+  if (errors.length > 0) return { valid: false, errors }
   return { valid: true, errors: [], data: { set, exercises, cards } }
 }
