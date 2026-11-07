@@ -27,8 +27,6 @@ export function PracticePage() {
   const [matchingSelections, setMatchingSelections] = useState<Record<string, string>>({})
   const [orderedTokens, setOrderedTokens] = useState<string[]>([])
   const [availableTokens, setAvailableTokens] = useState<string[]>([])
-  
-  // Vocabulary tracking
   const [viewedWords, setViewedWords] = useState<string[]>([])
 
   const [status, setStatus] = useState<'idle' | 'correct' | 'incorrect'>('idle')
@@ -93,7 +91,7 @@ export function PracticePage() {
     
     await db.cards.bulkAdd(newCards)
     alert(`Added ${viewedWords.length} cards to your deck!`)
-    setViewedWords([]) // Clear so button disappears
+    setViewedWords([])
   }
 
   const handleWordClick = (word: string) => {
@@ -161,6 +159,19 @@ export function PracticePage() {
     return !!userAnswer
   }
 
+  const renderCorrectAnswerText = () => {
+    if (exercise.type === 'multiple_choice') {
+      const opt = item.options?.find(o => o.id === item.answer[0])
+      return opt ? opt.text : String(item.answer[0])
+    }
+    if (exercise.type === 'true_false_ng') {
+      return item.answer[0] === 'T' ? 'True' : item.answer[0] === 'F' ? 'False' : 'Not Given'
+    }
+    if (exercise.type === 'ordering') return item.correct_order?.join(' ')
+    if (exercise.type === 'matching') return item.pairs?.map(p => `${p.left}→${p.right}`).join('; ')
+    return String(item.answer[0])
+  }
+
   if (isFinished) {
     const total = exercise.items.length
     const correctCount = Object.values(sessionAnswers).filter((a: any) => a.isCorrect).length
@@ -182,7 +193,7 @@ export function PracticePage() {
                  <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{idx + 1}. {it.prompt || 'Matching/Ordering Task'}</div>
                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                    <span style={{ color: ans?.isCorrect ? '#86efac' : '#fca5a5', maxWidth: '60%' }}>You: {String(ans?.answer || 'Skipped')}</span>
-                   {!ans?.isCorrect && <span style={{ color: '#86efac', maxWidth: '40%' }}>Correct: {it.correct_order?.join(' ') || it.pairs?.map(p => `${p.left}→${p.right}`).join('; ') || String(it.answer[0])}</span>}
+                   {!ans?.isCorrect && <span style={{ color: '#86efac', maxWidth: '40%' }}>Correct: {renderCorrectAnswerText()}</span>}
                  </div>
                </div>
              )
@@ -226,6 +237,7 @@ export function PracticePage() {
           <InteractiveText text={item.prompt} vocabulary={item.vocabulary} onWordClick={handleWordClick} />
         </h2>
       )}
+
       {showHint && item.hint && (
         <div style={{ padding: '1rem', background: '#1e293b', borderLeft: '4px solid #eab308', borderRadius: '4px', marginBottom: '1.5rem', color: '#fef08a' }}>
           <strong>Hint:</strong> {item.hint}
@@ -319,7 +331,7 @@ export function PracticePage() {
       {status !== 'idle' && (
         <div style={{ marginTop: '2rem', padding: '1.5rem', borderRadius: '8px', background: status === 'correct' ? '#14532d' : '#7f1d1d', border: '1px solid ' + (status === 'correct' ? '#22c55e' : '#ef4444') }}>
           <h3 style={{ marginTop: 0, color: status === 'correct' ? '#86efac' : '#fca5a5' }}>{status === 'correct' ? '✓ Correct!' : '✗ Incorrect'}</h3>
-          {status === 'incorrect' && <p style={{ color: '#fecaca', margin: '0.5rem 0' }}>Correct answer: <strong>{exercise.type === 'ordering' ? item.correct_order?.join(' ') : exercise.type === 'matching' ? item.pairs?.map(p => `${p.left}→${p.right}`).join('; ') : String(item.answer[0])}</strong></p>}
+          {status === 'incorrect' && <p style={{ color: '#fecaca', margin: '0.5rem 0' }}>Correct answer: <strong>{renderCorrectAnswerText()}</strong></p>}
           
           {viewedWords.length > 0 && (
             <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #475569' }}>
