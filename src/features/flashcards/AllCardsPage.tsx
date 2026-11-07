@@ -29,7 +29,6 @@ export function AllCardsPage() {
 
   const setMap = new Map(sets.map(s => [s.id, s]))
   const allTags = Array.from(new Set(cards.flatMap(c => c.tags))).sort()
-  const folderMap = new Map(folders.map(f => [f.id, f]))
 
   const filteredCards = cards.filter(c => {
     const set = setMap.get(c.set_id)
