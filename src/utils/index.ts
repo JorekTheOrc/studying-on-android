@@ -1,2 +1,3 @@
-// Helper functions (validation, prompt generation) will go here
-export {}
+export function generateUUID(): string {
+  return crypto.randomUUID()
+}
