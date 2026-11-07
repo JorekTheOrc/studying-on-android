@@ -154,6 +154,22 @@ Folder (вложенная) → Set (набор) → Exercise → Item
 - Промпт-пак (system prompt + user template + fix prompt).
 - Настроено окружение: Node v26.13.0, npm 11.20.0, git 2.54, Python 3.12.5.
 - Создан этот `STATUS.md`.
+- **Инициализация Git**: репозиторий связан с GitHub, `.gitignore` настроен
+  (включая `token.txt`, `.tmp/`).
+- **Скаффолд проекта**: `npm create vite@6` (React + TS), перенесён в корень,
+  обновлены `package.json` и `index.html`.
+- **Установлены зависимости**: `dexie`, `vite-plugin-pwa`, `ajv`, `react-router-dom`.
+- **Настроен PWA**: `vite.config.ts` с манифестом (standalone, тёмная тема),
+  сгенерированы иконки `pwa-192x192.png` и `pwa-512x512.png` (Python + Pillow).
+- **Проверка сборки**: `npm run build` создал `dist/` с `manifest.webmanifest`
+  и `sw.js` (service worker, 11 файлов в кэше). Приложение устанавливается
+  как PWA на Windows (Chrome).
+
+### 🟢 Готово к работе
+
+На текущий момент приложение представляет собой пустой шаблон Vite + React + TS,
+но уже является устанавливаемой PWA. Следующий шаг — создание структуры папок
+и экранов.
 
 ---
 
