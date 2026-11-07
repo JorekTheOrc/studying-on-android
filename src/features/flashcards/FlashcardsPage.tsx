@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
-import type { Card } from '../../types'
 
 export function FlashcardsPage() {
   const { setId } = useParams()

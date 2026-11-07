@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { generateUUID } from '../../utils'
-import type { Item, Exercise } from '../../types'
 
 export function PracticePage() {
   const { setId, exerciseId } = useParams()

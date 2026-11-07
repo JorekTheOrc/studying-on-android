@@ -173,22 +173,35 @@ Folder (вложенная) → Set (набор) → Exercise → Item
 
 ---
 
+### Сессия 2026-11-07 (Вечер: MVP-0 готов)
+
+- **Builder**: Экран генерации промпта. Форма с типами упражнений (названия + описания), уровнями, языками. Кнопка Copy.
+- **Валидатор (Античит)**: `validator.ts`. Проверяет JSON на дубли ID, наличие ответов в опциях, соответствие `___` количеству ответов, перестановки в `ordering`.
+- **Import**: Экран вставки JSON. Показывает список ошибок (красный) или подтверждение (зеленый) и сохраняет в Dexie.
+- **Home**: Главный экран. Список сетов (сортировка: новые сверху). Переход в сет.
+- **Practice Engine**: Движок упражнений. Реализованы `multiple_choice`, `true_false_ng`, `fill_blank`, `short_answer`, `sentence_completion`. Есть проверка, фидбек (правильно/неправильно) и сохранение прогресса в БД.
+- **Flashcards**: Экран карточек. Переворот по клику. Базовый SRS (кнопки Again/Good обновляют `due`).
+- **Settings**: Экспорт всей базы в `.json` файл и импорт (с полной перезаписью).
+- **PWA**: Приложение собирается как PWA, имеет иконки и манифест.
+
+---
+
 ## 8. TODO
 
 ### 🔴 MVP-0 (первый запуск)
 
-1. Инициализация: `git init`, `.gitignore`, `package.json`,
+1. ✅ Инициализация: `git init`, `.gitignore`, `package.json`,
    `vite.config.ts`, `tsconfig.json`.
-2. Каркас PWA: React + Vite + TS + vite-plugin-pwa + Dexie.
-3. Схема БД (Dexie): `folders, sets, exercises, items, cards, progress, settings`.
-4. Экран Instruction Builder: форма → промпт → Copy.
-5. Экран Import JSON: textarea → валидация → предпросмотр → Save.
-6. Экран Home: список наборов, фильтр по папке/тегу, поиск.
-7. Экран Set view: теория, список упражнений, Start.
-8. Экран Exercise runner: прохождение, Reveal hint / translation.
-9. Экран Flashcards: basic front/back, SM-2.
-10. Экран Settings: target/native lang, TTS голос, подсказки вкл/выкл.
-11. Backup / Restore: файл `.json`.
+2. ✅ Каркас PWA: React + Vite + TS + vite-plugin-pwa + Dexie.
+3. ✅ Схема БД (Dexie) и типы.
+4. ✅ Экран Instruction Builder.
+5. ✅ Экран Import JSON.
+6. ✅ Экран Home (базовый список).
+7. ✅ Экран Set view.
+8. ✅ Экран Exercise runner (без hints/trans).
+9. ✅ Экран Flashcards (базовый).
+10. ✅ Экран Settings (бэкап).
+11. ✅ Backup / Restore.
 12. Первый пуш на GitHub.
 
 ### 🟡 MVP-1
