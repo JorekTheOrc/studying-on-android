@@ -1,0 +1,291 @@
+# Studying on Android — Status & Handover
+
+**Обновлено:** 2026-11-07 (старт проекта)
+**Назначение:** продолжение работы в новой сессии без потери контекста.
+**Репозиторий:** https://github.com/JorekTheOrc/studying-on-android.git
+**Локальный путь:** D:\WEB\studying-on-android
+
+---
+
+## 1. Суть проекта
+
+Личный инструмент для практики английского языка (и других предметов) через
+упражнения разных типов на Android и Windows. Клиент-only PWA: конструктор
+промпта для ИИ → пользователь копирует в чат → получает JSON → вставляет
+обратно → приложение парсит, валидирует, сохраняет локально → пользователь
+практикуется офлайн.
+
+Никакого бэкенда, никаких платных сервисов. Вся работа с ИИ — через copy-paste
+(API-режим опционально, позже). Данные хранятся в браузере (IndexedDB),
+бэкап — файлом на диск пользователя.
+
+---
+
+## 2. Железные правила
+
+1. **Никаких платных сервисов.** Ни бэкенда, ни БД в облаке, ни AI-API
+   по умолчанию (только с ключом пользователя, опционально).
+2. **Клиент-only.** Все данные — в браузере пользователя. Никакой телеметрии.
+3. **Офлайн-first.** Работает без интернета (кроме опциональных картинок
+   и TTS, если голос не установлен в системе).
+4. **Копипаст с ИИ — основной путь.** Приложение генерирует промпт,
+   пользователь идёт в чат. Встроенный вызов ИИ — не обязательный.
+5. **Валидация JSON — святое.** Любой импорт проходит через схему + cross-checks.
+   Битый JSON в базу не сохраняется.
+6. **Правки кода — только после диагностики.** Сначала смотрим реальный файл,
+   потом патчим (правило из «Универсальные правила работы с ИИ»).
+7. **Один скрипт — одна правка.**
+8. **Кириллица — только через VS Code или Python.** PowerShell 5.1 бьёт
+   русский текст и эмодзи. `.md` с кириллицей — через VS Code (UTF-8).
+   Программные правки — Python-скриптами в `.tmp/` с `encoding="utf-8-sig"`.
+9. **Git — страховка.** Перед крупной правкой — коммит.
+10. **Мусор — в `.tmp/`.** Никаких временных патч-скриптов в корне проекта.
+
+---
+
+## 3. Окружение
+
+- **Платформа:** Windows ноутбук (разработка + использование), Android (использование).
+- **Стек:** React + Vite + TypeScript + Dexie (IndexedDB) + vite-plugin-pwa.
+- **Редактор:** VS Code (обязательно с UTF-8).
+- **Терминал:** PowerShell 5.1 + Python 3.12.5.
+
+### Версии (стартовая диагностика 2026-11-07)
+
+- node: v26.13.0 (⚠️ Current, не LTS — при проблемах с Vite откат на 22 LTS)
+- npm: 11.20.0
+- git: 2.54.0.windows.1
+- python: 3.12.5
+- node path: D:\Programs\INSTALLED\nodejs\node.exe
+- git user.name: JorekTheOrc
+- git user.email: lucidenglishdesk@gmail.com
+
+---
+
+## 4. Архитектура данных
+
+### 4.1. Иерархия
+
+Folder (вложенная) → Set (набор) → Exercise → Item
+                                   └→ Card (глобальная SRS-очередь)
+
+### 4.2. Folder
+
+- `id: uuid`
+- `name: string`
+- `parent_id: uuid | null`
+- `kind: "language" | "subject" | "custom"`
+- `icon: string` (эмодзи)
+- `created_at`, `updated_at`
+
+Автосоздание при первом запуске: `English` (language) → `Grammar`,
+`Vocabulary`, `Listening`, `Reading`.
+
+### 4.3. Set
+
+Содержит `folder_id`, `tags[]` (плоские, много на набор), `theory_md`,
+`settings`, `exercises[]`, `cards[]`. Полная JSON-схема — раздел 5.
+
+### 4.4. Card
+
+- `id, front, back, tags[], source_item_id`
+- SRS: `due, interval, ease, reps, lapses` (SM-2)
+- Глобальная колода с фильтрами «по набору / по папке / по тегу / всё»
+
+### 4.5. Tag
+
+Плоские строки. Экран тегов: список с количеством, переименование, слияние.
+
+### 4.6. Progress
+
+`set_id, item_id, correct, used_hint, used_translation, timestamp, duration_ms`.
+
+---
+
+## 5. JSON-схема v1
+
+Полная схема — в `docs/schema-v1.md` (создаётся отдельным шагом).
+Типы упражнений:
+
+1. `multiple_choice` — A/B/C/D, один правильный
+2. `true_false_ng` — T/F/NG
+3. `sentence_completion` — вписать 1-3 слова, `word_limit`
+4. `fill_blank` — пропуски, опционально `word_box` (каждое слово ровно раз)
+5. `matching` — пары
+6. `ordering` — переставить токены, `correct_order` — перестановка `tokens`
+7. `short_answer` — открытый ответ с `alternatives`
+8. `translation` — перевод native → target
+9. `cards` — карточки (авто из «подглянутых» + вручную)
+
+Промпт-пак для ИИ — в `docs/prompt-pack.md` (создаётся отдельно).
+
+---
+
+## 6. Правила валидации JSON (античит-слой A)
+
+| Проверка | Что ловит |
+|---|---|
+| JSON.parse | Битый JSON, trailing commas |
+| JSON Schema (Ajv) | Неверные типы, отсутствующие поля |
+| Уникальность `id` | Дубли |
+| `answer ⊂ options` (MC) | Ответ, которого нет среди вариантов |
+| `correct_order` — перестановка `tokens` (Ordering) | Потерянные/лишние |
+| `pairs.left.length == pairs.right.length` (Matching) | Кривой matching |
+| `___ count == answer.length` (FillBlank) | Кривой fill_blank |
+| Word-box accounting | Пропущенные / дублированные слова |
+| Length checks | Обрезанные ответы |
+
+При провале — точный список ошибок + кнопка «Сгенерировать fix-промпт»
+(второй промпт для ИИ с описанием ошибок).
+
+---
+
+## 7. Сделано за сессии
+
+### Сессия 2026-11-07 (старт)
+
+- Дизайн-разговор с ИИ-ассистентом.
+- Стек: PWA (React + Vite + TypeScript + Dexie + vite-plugin-pwa).
+- Платформы: Android (использование), Windows (разработка + использование).
+- JSON-схема v1: 9 типов упражнений + карточки.
+- Папки (вложенные) + теги (плоские).
+- Механики: SRS глобальный с фильтрами, валидация с fix-промптом,
+  бэкап в один файл.
+- Промпт-пак (system prompt + user template + fix prompt).
+- Настроено окружение: Node v26.13.0, npm 11.20.0, git 2.54, Python 3.12.5.
+- Создан этот `STATUS.md`.
+
+---
+
+## 8. TODO
+
+### 🔴 MVP-0 (первый запуск)
+
+1. Инициализация: `git init`, `.gitignore`, `package.json`,
+   `vite.config.ts`, `tsconfig.json`.
+2. Каркас PWA: React + Vite + TS + vite-plugin-pwa + Dexie.
+3. Схема БД (Dexie): `folders, sets, exercises, items, cards, progress, settings`.
+4. Экран Instruction Builder: форма → промпт → Copy.
+5. Экран Import JSON: textarea → валидация → предпросмотр → Save.
+6. Экран Home: список наборов, фильтр по папке/тегу, поиск.
+7. Экран Set view: теория, список упражнений, Start.
+8. Экран Exercise runner: прохождение, Reveal hint / translation.
+9. Экран Flashcards: basic front/back, SM-2.
+10. Экран Settings: target/native lang, TTS голос, подсказки вкл/выкл.
+11. Backup / Restore: файл `.json`.
+12. Первый пуш на GitHub.
+
+### 🟡 MVP-1
+
+13. `word_box` в fill_blank.
+14. Валидация с fix-промптом (кнопка).
+15. Импорт частями (`set_id`, `part/total_parts`).
+16. Экспорт упражнения / набора / папки.
+17. Экспорт карточек в CSV (Anki).
+18. Картинки-подсказки через Openverse API (онлайн, по клику).
+19. TTS через Web Speech API.
+20. KaTeX для формул в `theory_md`.
+21. Авто-бэкап раз в день (File System Access API).
+22. Глобальный переключатель «показывать/скрыть переводы».
+
+### 🟢 MVP-2
+
+23. API-режим: ключ пользователя, встроенный вызов ИИ.
+24. Anki-экспорт `.apkg`.
+25. Cloze-карточки.
+26. Статистика: % правильных, streak, что чаще путаете.
+27. Импорт из Anki.
+28. PDF-экспорт.
+29. Многоязычный UI (RU/EN).
+30. APK через Capacitor.
+
+---
+
+## 9. Уроки сессий
+
+- **2026-11-07:** PWA выбран вместо Flutter — быстрее итерации, работает
+  на Android + Windows без сборки, оборачивается в APK через Capacitor позже.
+- **2026-11-07:** ИИ-генерация JSON — главный риск. Валидация + fix-промпт
+  критичны с MVP-0, не «потом».
+- **2026-11-07:** Node v26 — Current, не LTS. Vite 7 требует 20.19+/22.12+,
+  так что 26 подходит по минимуму. Если `npm install` упадёт — откатываемся
+  на Node 22 LTS. Записать этот опыт в раздел.
+- **2026-11-07:** Кириллица идёт через VS Code (UTF-8). PowerShell here-strings
+  для русского текста не использовать. Программные правки — Python в `.tmp/`
+  с `encoding="utf-8-sig"`.
+
+---
+
+## 10. Полезные команды
+
+### Git
+
+```powershell
+cd D:\WEB\studying-on-android
+git status
+git add -A
+git commit -m "..."
+git push origin main
+```
+
+### Node / Vite
+
+```powershell
+cd D:\WEB\studying-on-android
+npm install
+npm run dev
+npm run build
+npm run preview
+```
+
+### Установка PWA на Android
+
+1. Открыть `http://<IP-ноутбука>:5173` в Chrome на Android.
+2. Меню → «Установить приложение».
+
+### Python-скрипты для правок файлов
+
+```powershell
+cd D:\WEB\studying-on-android
+python .tmp\edit_xxx.py
+```
+
+Скрипт содержит контент как строку и пишет через
+`open(path, "w", encoding="utf-8-sig")`.
+
+---
+
+## 11. Артефакты
+
+### В репозитории
+
+- `STATUS.md` (этот файл)
+- `.gitignore` (создаётся)
+- `package.json`, `vite.config.ts`, `tsconfig.json` (MVP-0)
+- `docs/schema-v1.md` (создаётся)
+- `docs/prompt-pack.md` (создаётся)
+
+### Локально вне репо
+
+- `.tmp/` — временные Python-скрипты (добавляется в `.gitignore`)
+
+---
+
+## 12. Промпт-пак
+
+Три части (в `docs/prompt-pack.md`):
+
+1. **System prompt** — правила + JSON-схема.
+2. **User template** — параметры конкретного запроса.
+3. **Fix prompt** — ответ на битый JSON.
+
+---
+
+## 13. Ссылки
+
+- GitHub: https://github.com/JorekTheOrc/studying-on-android.git
+- Правила работы с ИИ: `Универсальные правила работы с ИИ (для любых.txt)`
+
+---
+
+*Следующая сессия: начать с раздела 8 → MVP-0, пункты 1-3.*
