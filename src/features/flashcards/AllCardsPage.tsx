@@ -25,6 +25,9 @@ export function AllCardsPage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
   const [reviewBaseUrl, setReviewBaseUrl] = useState('')
 
+  // Edit modes for filters
+  const [editMode, setEditMode] = useState<'none' | 'folder' | 'set' | 'tag'>('none')
+
   if (!cards || !sets || !folders) return <p>Loading cards...</p>
 
   const setMap = new Map(sets.map(s => [s.id, s]))
@@ -48,10 +51,6 @@ export function AllCardsPage() {
 
   const dueCount = filteredCards.filter(c => c.due <= Date.now()).length
   const formatDate = (ts: number) => new Date(ts).toLocaleDateString()
-
-  const toggleTag = (tag: string) => {
-    setFilterTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
-  }
 
   const openReviewModal = () => {
     const params = new URLSearchParams()
@@ -85,30 +84,56 @@ export function AllCardsPage() {
     setEditingCard(null)
   }
 
+  // --- Rename Handlers ---
+  const handleFolderPillClick = async (id: string, currentName: string) => {
+    if (editMode === 'folder') {
+      const newName = prompt("Rename folder:", currentName)
+      if (newName && newName.trim() !== '' && newName !== currentName) await db.folders.update(id, { name: newName.trim() })
+    } else {
+      setFilterFolder(id); setFilterSet('all')
+    }
+  }
+
+  const handleSetPillClick = async (id: string, currentTitle: string) => {
+    if (editMode === 'set') {
+      const newTitle = prompt("Rename set:", currentTitle)
+      if (newTitle && newTitle.trim() !== '' && newTitle !== currentTitle) await db.sets.update(id, { title: newTitle.trim() })
+    } else {
+      setFilterSet(id)
+    }
+  }
+
+  const handleTagPillClick = async (tag: string) => {
+    if (editMode === 'tag') {
+      const newTag = prompt("Rename tag (remove # if any):", tag)
+      if (newTag && newTag.trim() !== '' && newTag !== tag) {
+        const cleanNewTag = newTag.trim().replace(/^#/, '')
+        await db.sets.toCollection().modify(s => { if (s.tags.includes(tag)) s.tags = s.tags.map(t => t === tag ? cleanNewTag : t) })
+        await db.cards.toCollection().modify(c => { if (c.tags.includes(tag)) c.tags = c.tags.map(t => t === tag ? cleanNewTag : t) })
+        await db.exercises.toCollection().modify(e => { if (e.tags && e.tags.includes(tag)) e.tags = e.tags.map(t => t === tag ? cleanNewTag : t) })
+      }
+    } else {
+      setFilterTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+    }
+  }
+
   const setsForFolder = filterFolder === 'all' ? sets : sets.filter(s => {
     if (filterFolder === 'null') return s.folder_id === null
     return s.folder_id === filterFolder
   })
 
-  // Pill Component
-  const Pill = ({ active, onClick, children, color }: any) => (
+  const Pill = ({ active, onClick, children, color, isEditing }: any) => (
     <button
       onClick={onClick}
       style={{
-        padding: '0.4rem 0.8rem',
-        borderRadius: '16px',
+        padding: '0.4rem 0.8rem', borderRadius: '16px',
         background: active ? (color || '#0ea5e9') : '#1e293b',
-        border: `1px solid ${active ? (color || '#0ea5e9') : '#475569'}`,
-        color: active ? '#fff' : '#94a3b8',
-        cursor: 'pointer',
-        fontSize: '0.85rem',
-        fontWeight: active ? 'bold' : 'normal',
-        transition: '0.2s',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.4rem'
+        border: `1px solid ${active ? (color || '#0ea5e9') : (isEditing ? '#f59e0b' : '#475569')}`,
+        color: active ? '#fff' : '#94a3b8', cursor: 'pointer', fontSize: '0.85rem', fontWeight: active ? 'bold' : 'normal',
+        transition: '0.2s', display: 'flex', alignItems: 'center', gap: '0.4rem'
       }}
     >
+      {isEditing && '✏️ '}
       {children}
     </button>
   )
@@ -125,17 +150,21 @@ export function AllCardsPage() {
         </div>
       </div>
 
-      {/* Hierarchical Filters */}
       <div style={{ background: '#1e293b', padding: '1.2rem', borderRadius: '8px', border: '1px solid #334155', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         
         {/* Folders Row */}
         <div>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Filter by Folder:</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Filter by Folder:</div>
+            <button onClick={() => setEditMode(editMode === 'folder' ? 'none' : 'folder')} style={{ background: editMode === 'folder' ? '#ef4444' : 'transparent', border: 'none', color: editMode === 'folder' ? '#fff' : '#38bdf8', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+              {editMode === 'folder' ? 'Done' : '✏️ Edit'}
+            </button>
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-            <Pill active={filterFolder === 'all'} onClick={() => { setFilterFolder('all'); setFilterSet('all') }}>All Folders</Pill>
-            <Pill active={filterFolder === 'null'} onClick={() => { setFilterFolder('null'); setFilterSet('all') }}>Uncategorized</Pill>
+            <Pill active={filterFolder === 'all'} onClick={() => handleFolderPillClick('all', '')} isEditing={editMode === 'folder' && filterFolder !== 'all'}>All Folders</Pill>
+            <Pill active={filterFolder === 'null'} onClick={() => handleFolderPillClick('null', '')} isEditing={editMode === 'folder' && filterFolder !== 'null'}>Uncategorized</Pill>
             {folders.filter(f => f.parent_id === null).map(f => (
-              <Pill key={f.id} active={filterFolder === f.id} onClick={() => { setFilterFolder(f.id); setFilterSet('all') }} color={getFolderColor(f.id)}>
+              <Pill key={f.id} active={filterFolder === f.id} onClick={() => handleFolderPillClick(f.id, f.name)} color={getFolderColor(f.id)} isEditing={editMode === 'folder'}>
                 {f.name}
               </Pill>
             ))}
@@ -144,11 +173,16 @@ export function AllCardsPage() {
 
         {/* Sets Sub-Row */}
         <div style={{ marginLeft: '1rem', paddingLeft: '1rem', borderLeft: '2px solid #334155' }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Filter by Set:</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Filter by Set:</div>
+            <button onClick={() => setEditMode(editMode === 'set' ? 'none' : 'set')} style={{ background: editMode === 'set' ? '#ef4444' : 'transparent', border: 'none', color: editMode === 'set' ? '#fff' : '#38bdf8', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+              {editMode === 'set' ? 'Done' : '✏️ Edit'}
+            </button>
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
             <Pill active={filterSet === 'all'} onClick={() => setFilterSet('all')}>All Sets</Pill>
             {setsForFolder.map(s => (
-              <Pill key={s.id} active={filterSet === s.id} onClick={() => setFilterSet(s.id)}>
+              <Pill key={s.id} active={filterSet === s.id} onClick={() => handleSetPillClick(s.id, s.title)} isEditing={editMode === 'set'}>
                 {s.title}
               </Pill>
             ))}
@@ -158,12 +192,17 @@ export function AllCardsPage() {
         {/* Tags Row */}
         {allTags.length > 0 && (
           <div style={{ borderTop: '1px solid #334155', paddingTop: '1rem' }}>
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Filter by Tags:</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Filter by Tags:</div>
+              <button onClick={() => setEditMode(editMode === 'tag' ? 'none' : 'tag')} style={{ background: editMode === 'tag' ? '#ef4444' : 'transparent', border: 'none', color: editMode === 'tag' ? '#fff' : '#38bdf8', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                {editMode === 'tag' ? 'Done' : '✏️ Edit'}
+              </button>
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
               {allTags.map(tag => {
                 const isActive = filterTags.includes(tag)
                 return (
-                  <Pill key={tag} active={isActive} onClick={() => toggleTag(tag)} color="#0ea5e9">
+                  <Pill key={tag} active={isActive} onClick={() => handleTagPillClick(tag)} color="#0ea5e9" isEditing={editMode === 'tag'}>
                     #{tag}
                   </Pill>
                 )
@@ -176,9 +215,7 @@ export function AllCardsPage() {
         )}
       </div>
 
-      <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1rem' }}>
-        Showing {filteredCards.length} cards ({dueCount} due now)
-      </div>
+      <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1rem' }}>Showing {filteredCards.length} cards ({dueCount} due now)</div>
 
       {filteredCards.length === 0 ? (
         <div style={{ padding: '2rem', border: '1px dashed #475569', borderRadius: '8px', textAlign: 'center', color: '#94a3b8' }}>

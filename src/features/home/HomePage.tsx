@@ -17,6 +17,8 @@ export function HomePage() {
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedSets, setSelectedSets] = useState<string[]>([])
   
+  const [isEditingFolders, setIsEditingFolders] = useState(false)
+
   const [editingSet, setEditingSet] = useState<Set | null>(null)
   const [editFolder, setEditFolder] = useState('')
   const [editTags, setEditTags] = useState('')
@@ -85,6 +87,17 @@ export function HomePage() {
     setEditFolder(newFolder.id)
   }
 
+  const handleFolderClick = async (id: string, currentName: string) => {
+    if (isEditingFolders) {
+      const newName = prompt("Rename folder:", currentName)
+      if (newName && newName.trim() !== '' && newName !== currentName) {
+        await db.folders.update(id, { name: newName.trim() })
+      }
+    } else {
+      setSelectedFolder(id)
+    }
+  }
+
   const currentFolderName = selectedFolder === 'all' ? 'All' :
     selectedFolder === 'null' ? 'Uncategorized' :
     folders.find(f => f.id === selectedFolder)?.name || ''
@@ -92,21 +105,27 @@ export function HomePage() {
   return (
     <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap', paddingBottom: selectedSets.length > 0 ? '80px' : '0' }}>
       
+      {/* Sidebar: Folders */}
       <div style={{ width: '220px', background: '#1e293b', borderRadius: '8px', padding: '1rem', border: '1px solid #334155', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h3 style={{ margin: 0, color: '#e2e8f0' }}>Folders</h3>
-          <button onClick={createFolder} style={{ background: '#0ea5e9', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', padding: '0.2rem 0.5rem', fontWeight: 'bold' }}>+</button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={() => setIsEditingFolders(!isEditingFolders)} style={{ background: isEditingFolders ? '#ef4444' : '#334155', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', padding: '0.2rem 0.4rem', fontSize: '0.8rem' }} title="Rename folders">
+              {isEditingFolders ? 'Done' : '✏️'}
+            </button>
+            <button onClick={createFolder} style={{ background: '#0ea5e9', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', padding: '0.2rem 0.5rem', fontWeight: 'bold' }}>+</button>
+          </div>
         </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <button onClick={() => setSelectedFolder('all')} style={{ textAlign: 'left', background: selectedFolder === 'all' ? '#334155' : 'transparent', color: selectedFolder === 'all' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>All Sets</button>
-          <button onClick={() => setSelectedFolder('null')} style={{ textAlign: 'left', background: selectedFolder === 'null' ? '#334155' : 'transparent', color: selectedFolder === 'null' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: 'pointer' }}>Uncategorized</button>
+          <button onClick={() => !isEditingFolders && setSelectedFolder('all')} style={{ textAlign: 'left', background: selectedFolder === 'all' ? '#334155' : 'transparent', color: selectedFolder === 'all' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: isEditingFolders ? 'default' : 'pointer', fontWeight: 'bold' }}>All Sets</button>
+          <button onClick={() => !isEditingFolders && setSelectedFolder('null')} style={{ textAlign: 'left', background: selectedFolder === 'null' ? '#334155' : 'transparent', color: selectedFolder === 'null' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: isEditingFolders ? 'default' : 'pointer' }}>Uncategorized</button>
           
           {folders.filter(f => f.parent_id === null).map(f => {
             const color = getFolderColor(f.id)
             return (
-              <button key={f.id} onClick={() => setSelectedFolder(f.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left', background: selectedFolder === f.id ? '#334155' : 'transparent', color: selectedFolder === f.id ? '#fff' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: 'pointer' }}>
-                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: color }}></div>
+              <button key={f.id} onClick={() => handleFolderClick(f.id, f.name)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left', background: selectedFolder === f.id ? '#334155' : 'transparent', color: selectedFolder === f.id ? '#fff' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: isEditingFolders ? 'text' : 'pointer', transition: '0.2s' }}>
+                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: color, flexShrink: 0 }}></div>
                 {f.name}
               </button>
             )
@@ -114,6 +133,7 @@ export function HomePage() {
         </div>
       </div>
 
+      {/* Main Content */}
       <div style={{ flex: 1, minWidth: '300px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
