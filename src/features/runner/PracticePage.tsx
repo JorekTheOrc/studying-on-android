@@ -10,29 +10,25 @@ export function PracticePage() {
   const exercise = useLiveQuery(() => exerciseId ? db.exercises.get(exerciseId) : undefined, [exerciseId])
   const set = useLiveQuery(() => setId ? db.sets.get(setId) : undefined, [setId])
   
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    if (!exerciseId) return 0
+    const saved = localStorage.getItem(`progress_${exerciseId}`)
+    return saved ? JSON.parse(saved).currentIndex || 0 : 0
+  })
+  
+  const [sessionAnswers, setSessionAnswers] = useState<Record<string, { answer: any, isCorrect: boolean }>>(() => {
+    if (!exerciseId) return {}
+    const saved = localStorage.getItem(`progress_${exerciseId}`)
+    return saved ? JSON.parse(saved).sessionAnswers || {} : {}
+  })
+
   const [userAnswer, setUserAnswer] = useState<any>('')
   const [status, setStatus] = useState<'idle' | 'correct' | 'incorrect'>('idle')
   const [startTime, setStartTime] = useState(Date.now())
   
-  // New States
   const [showTheory, setShowTheory] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
-  const [sessionAnswers, setSessionAnswers] = useState<Record<string, { answer: any, isCorrect: boolean }>>({})
   const [attemptCount, setAttemptCount] = useState(0)
-
-  // Load progress from localStorage
-  useEffect(() => {
-    if (!exerciseId) return
-    const saved = localStorage.getItem(`progress_${exerciseId}`)
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      if (parsed.currentIndex < (exercise?.items.length || 0)) {
-        setCurrentIndex(parsed.currentIndex)
-        setSessionAnswers(parsed.sessionAnswers || {})
-      }
-    }
-  }, [exerciseId, exercise?.items.length])
 
   // Save progress to localStorage
   useEffect(() => {
@@ -124,7 +120,7 @@ export function PracticePage() {
         </div>
         
         <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
-          <button onClick={() => { setIsFinished(false); setCurrentIndex(0); setSessionAnswers({}); }} style={{ flex: 1, padding: '1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Try Again</button>
+          <button onClick={() => { setIsFinished(false); setCurrentIndex(0); setSessionAnswers({}); localStorage.removeItem(`progress_${exerciseId}`); }} style={{ flex: 1, padding: '1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Try Again</button>
           <Link to={`/runner/${setId}`} style={{ flex: 1, padding: '1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', textDecoration: 'none' }}>Back to Set</Link>
         </div>
       </div>
