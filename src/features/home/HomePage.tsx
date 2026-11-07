@@ -3,7 +3,11 @@ import { db } from '../../db'
 import { Link, useNavigate } from 'react-router-dom'
 
 export function HomePage() {
-  const sets = useLiveQuery(() => db.sets.toArray(), [])
+  // Fetch sets from DB, sorted by created_at DESC (newest first)
+  const sets = useLiveQuery(
+    () => db.sets.toArray().then(arr => arr.sort((a, b) => b.created_at - a.created_at)), 
+    []
+  )
   const loading = sets === undefined
   const navigate = useNavigate()
 

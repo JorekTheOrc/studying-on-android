@@ -20,10 +20,22 @@ export function RunnerPage() {
         <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none' }}>← Back to My Sets</Link>
       </div>
       
-      <h1 style={{ marginBottom: '0.2rem' }}>{set.title}</h1>
-      <p style={{ color: '#94a3b8', marginTop: 0, marginBottom: '2rem' }}>
-        Level: {set.level} | Lang: {set.target_lang} | Exercises: {exercises.length}
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ marginBottom: '0.2rem' }}>{set.title}</h1>
+          <p style={{ color: '#94a3b8', marginTop: 0, marginBottom: '2rem' }}>
+            Level: {set.level} | Lang: {set.target_lang} | Exercises: {exercises.length}
+          </p>
+        </div>
+        
+        {/* Flashcards Button */}
+        <button 
+          onClick={() => navigate(`/runner/${setId}/flashcards`)}
+          style={{ padding: '0.8rem 1.5rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          Review Flashcards
+        </button>
+      </div>
 
       <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #334155', marginBottom: '1.5rem' }}>
         <button 

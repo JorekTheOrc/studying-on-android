@@ -6,6 +6,7 @@ import { ImportPage } from '../features/import/ImportPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { RunnerPage } from '../features/runner/RunnerPage'
 import { PracticePage } from '../features/runner/PracticePage'
+import { FlashcardsPage } from '../features/flashcards/FlashcardsPage'
 
 const router = createBrowserRouter([
   {
@@ -18,6 +19,7 @@ const router = createBrowserRouter([
       { path: 'settings', element: <SettingsPage /> },
       { path: 'runner/:setId', element: <RunnerPage /> },
       { path: 'runner/:setId/practice/:exerciseId', element: <PracticePage /> },
+      { path: 'runner/:setId/flashcards', element: <FlashcardsPage /> },
     ],
   },
 ])
