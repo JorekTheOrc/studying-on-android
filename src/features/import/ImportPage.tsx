@@ -19,9 +19,14 @@ export function ImportPage() {
     try {
       const { set, exercises, cards } = result.data
       await db.transaction('rw', [db.sets, db.exercises, db.cards], async () => {
-        await db.sets.add(set)
-        await db.exercises.bulkAdd(exercises)
-        if (cards.length > 0) await db.cards.bulkAdd(cards)
+        // Delete existing exercises and cards for this set to prevent orphaned data
+        await db.exercises.where('set_id').equals(set.id).delete()
+        await db.cards.where('set_id').equals(set.id).delete()
+
+        // Use put and bulkPut to allow overwriting existing sets
+        await db.sets.put(set)
+        await db.exercises.bulkPut(exercises)
+        if (cards.length > 0) await db.cards.bulkPut(cards)
       })
       setSaved(true)
       setJsonText('') // clear textarea
