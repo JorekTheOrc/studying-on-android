@@ -5,6 +5,15 @@ import { useNavigate } from 'react-router-dom'
 import type { Set } from '../../types'
 import { generateUUID } from '../../utils'
 
+const FOLDER_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#84cc16']
+
+function getFolderColor(id: string | null) {
+  if (!id) return '#64748b' // Uncategorized (slate)
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
+  return FOLDER_COLORS[Math.abs(hash) % FOLDER_COLORS.length]
+}
+
 export function HomePage() {
   const navigate = useNavigate()
   const sets = useLiveQuery(() => db.sets.toArray().then(arr => arr.sort((a, b) => b.created_at - a.created_at)), [])
@@ -12,9 +21,12 @@ export function HomePage() {
   
   const [selectedFolder, setSelectedFolder] = useState<string | 'all'>('all')
   const [search, setSearch] = useState('')
+  
+  // Bulk Selection State
+  const [selectedSets, setSelectedSets] = useState<string[]>([])
+  
+  // Edit Modal State
   const [editingSet, setEditingSet] = useState<Set | null>(null)
-
-  // Edit form state
   const [editFolder, setEditFolder] = useState('')
   const [editTags, setEditTags] = useState('')
 
@@ -27,6 +39,16 @@ export function HomePage() {
     return matchesFolder && matchesSearch
   })
 
+  const toggleSelection = (id: string) => {
+    setSelectedSets(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const handleBulkMove = async (folderId: string | null) => {
+    if (selectedSets.length === 0) return
+    await db.sets.where('id').anyOf(selectedSets).modify({ folder_id: folderId })
+    setSelectedSets([])
+  }
+
   const openEditModal = (set: Set) => {
     setEditingSet(set)
     setEditFolder(set.folder_id || 'null')
@@ -37,7 +59,6 @@ export function HomePage() {
     if (!editingSet) return
     const tagsArray = editTags.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean)
     const newFolderId = editFolder === 'null' ? null : editFolder
-
     await db.sets.update(editingSet.id, { folder_id: newFolderId, tags: tagsArray })
     setEditingSet(null)
   }
@@ -50,11 +71,11 @@ export function HomePage() {
       created_at: Date.now(), updated_at: Date.now()
     }
     await db.folders.add(newFolder)
-    setEditFolder(newFolder.id) // Auto-select the newly created folder
+    setEditFolder(newFolder.id)
   }
 
   return (
-    <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap', paddingBottom: selectedSets.length > 0 ? '80px' : '0' }}>
       
       {/* Sidebar: Folders */}
       <div style={{ width: '220px', background: '#1e293b', borderRadius: '8px', padding: '1rem', border: '1px solid #334155', flexShrink: 0 }}>
@@ -66,11 +87,16 @@ export function HomePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <button onClick={() => setSelectedFolder('all')} style={{ textAlign: 'left', background: selectedFolder === 'all' ? '#334155' : 'transparent', color: selectedFolder === 'all' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>All Sets</button>
           <button onClick={() => setSelectedFolder('null')} style={{ textAlign: 'left', background: selectedFolder === 'null' ? '#334155' : 'transparent', color: selectedFolder === 'null' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: 'pointer' }}>Uncategorized</button>
-          {folders.filter(f => f.parent_id === null).map(f => (
-            <button key={f.id} onClick={() => setSelectedFolder(f.id)} style={{ textAlign: 'left', background: selectedFolder === f.id ? '#334155' : 'transparent', color: selectedFolder === f.id ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: 'pointer' }}>
-              {f.icon} {f.name}
-            </button>
-          ))}
+          
+          {folders.filter(f => f.parent_id === null).map(f => {
+            const color = getFolderColor(f.id)
+            return (
+              <button key={f.id} onClick={() => setSelectedFolder(f.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left', background: selectedFolder === f.id ? '#334155' : 'transparent', color: selectedFolder === f.id ? '#fff' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: 'pointer' }}>
+                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: color }}></div>
+                {f.name}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -91,29 +117,73 @@ export function HomePage() {
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '1rem' }}>
-            {filteredSets.map(set => (
-              <div key={set.id} style={{ padding: '1.5rem', background: '#1e293b', borderRadius: '8px', border: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>{set.title}</h3>
-                  <div style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
-                    Topic: {set.topic || 'N/A'} | Level: {set.level || 'N/A'}
-                  </div>
-                  {set.tags.length > 0 && (
-                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                      {set.tags.map(t => <span key={t} style={{ fontSize: '0.75rem', background: '#334155', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#cbd5e1' }}>#{t}</span>)}
+            {filteredSets.map(set => {
+              const folderColor = getFolderColor(set.folder_id)
+              const isSelected = selectedSets.includes(set.id)
+              return (
+                <div key={set.id} style={{ 
+                  padding: '1.5rem', background: isSelected ? '#1e293b' : '#1e293b', 
+                  border: '1px solid ' + (isSelected ? '#0ea5e9' : '#334155'), 
+                  borderLeft: `6px solid ${folderColor}`,
+                  borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem',
+                  transition: '0.2s'
+                }}>
+                  {/* Selection Checkbox */}
+                  <input 
+                    type="checkbox" 
+                    checked={isSelected}
+                    onChange={() => toggleSelection(set.id)}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9' }}
+                  />
+
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>{set.title}</h3>
+                    <div style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                      Topic: {set.topic || 'N/A'} | Level: {set.level || 'N/A'}
                     </div>
-                  )}
+                    {set.tags.length > 0 && (
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {set.tags.map(t => <span key={t} style={{ fontSize: '0.75rem', background: '#334155', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#cbd5e1' }}>#{t}</span>)}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button onClick={() => openEditModal(set)} style={{ padding: '0.5rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
+                    <button onClick={() => navigate(`/runner/${set.id}`)} style={{ padding: '0.5rem 1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Open</button>
+                  </div>
                 </div>
-                
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button onClick={() => openEditModal(set)} style={{ padding: '0.5rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
-                  <button onClick={() => navigate(`/runner/${set.id}`)} style={{ padding: '0.5rem 1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Open</button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
+
+      {/* Bulk Action Bar */}
+      {selectedSets.length > 0 && (
+        <div style={{ 
+          position: 'fixed', bottom: 0, left: 0, right: 0, 
+          background: '#1e293b', borderTop: '1px solid #334155', 
+          padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem',
+          zIndex: 900, boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.1)'
+        }}>
+          <span style={{ fontWeight: 'bold', color: '#38bdf8' }}>{selectedSets.length} selected</span>
+          
+          <select 
+            onChange={(e) => handleBulkMove(e.target.value === 'null' ? null : e.target.value)}
+            defaultValue=""
+            style={{ padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', cursor: 'pointer' }}
+          >
+            <option value="" disabled>Move to folder...</option>
+            <option value="null">Uncategorized</option>
+            {folders.filter(f => f.parent_id === null).map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+
+          <button onClick={() => setSelectedSets([])} style={{ padding: '0.6rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+        </div>
+      )}
 
       {/* Edit Set Modal */}
       {editingSet && (
