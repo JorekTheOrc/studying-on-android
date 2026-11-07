@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { useNavigate } from 'react-router-dom'
 import type { Card } from '../../types'
+import { ReviewModal } from '../../shared/ReviewModal'
 
 export function AllCardsPage() {
   const navigate = useNavigate()
@@ -20,6 +21,9 @@ export function AllCardsPage() {
   const [editBack, setEditBack] = useState('')
   const [editTags, setEditTags] = useState('')
 
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [reviewBaseUrl, setReviewBaseUrl] = useState('')
+
   if (!cards || !sets || !folders) return <p>Loading cards...</p>
 
   const setMap = new Map(sets.map(s => [s.id, s]))
@@ -30,16 +34,12 @@ export function AllCardsPage() {
     const set = setMap.get(c.set_id)
     if (!set) return false
     
-    // Folder filter
     if (filterFolder !== 'all') {
       if (filterFolder === 'null' && set.folder_id !== null) return false
       if (filterFolder !== 'null' && set.folder_id !== filterFolder) return false
     }
-    // Set filter
     if (filterSet !== 'all' && c.set_id !== filterSet) return false
-    // Tag filter (any of selected)
     if (filterTags.length > 0 && !filterTags.some(t => c.tags.includes(t))) return false
-    // Search
     const q = search.toLowerCase()
     if (q && !c.front.toLowerCase().includes(q) && !c.back.toLowerCase().includes(q)) return false
     
@@ -54,7 +54,7 @@ export function AllCardsPage() {
     setFilterTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
   }
 
-  const handleStartReview = () => {
+  const openReviewModal = () => {
     const params = new URLSearchParams()
     if (filterFolder !== 'all') {
       if (filterFolder === 'null') params.set('uncategorized', 'true')
@@ -62,6 +62,13 @@ export function AllCardsPage() {
     }
     if (filterSet !== 'all') params.set('setId', filterSet)
     if (filterTags.length > 0) params.set('tags', filterTags.join(','))
+    setReviewBaseUrl(params.toString())
+    setIsReviewModalOpen(true)
+  }
+
+  const handleStartReview = (direction: string) => {
+    const params = new URLSearchParams(reviewBaseUrl)
+    params.set('direction', direction)
     navigate(`/review?${params.toString()}`)
   }
 
@@ -94,7 +101,7 @@ export function AllCardsPage() {
             style={{ padding: '0.6rem 1rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', width: '200px' }}
           />
           <button 
-            onClick={handleStartReview}
+            onClick={openReviewModal}
             disabled={dueCount === 0}
             style={{ padding: '0.6rem 1.2rem', background: dueCount > 0 ? '#8b5cf6' : '#334155', color: '#fff', border: 'none', borderRadius: '8px', cursor: dueCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}
           >
@@ -156,7 +163,6 @@ export function AllCardsPage() {
       {filteredCards.length === 0 ? (
         <div style={{ padding: '2rem', border: '1px dashed #475569', borderRadius: '8px', textAlign: 'center', color: '#94a3b8' }}>
           <h2 style={{ marginTop: 0, color: '#e2e8f0' }}>No cards found</h2>
-          <p>Adjust filters or add cards during practice.</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: '1rem' }}>
@@ -211,6 +217,8 @@ export function AllCardsPage() {
           </div>
         </div>
       )}
+
+      <ReviewModal isOpen={isReviewModalOpen} onClose={() => setIsReviewModalOpen(false)} onSelect={handleStartReview} />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
@@ -13,8 +13,8 @@ export function ReviewPage() {
   const tagsParam = searchParams.get('tags')
   const tags = tagsParam ? tagsParam.split(',') : []
   const uncategorized = searchParams.get('uncategorized') === 'true'
+  const direction = searchParams.get('direction') || 'target_to_native'
   
-  // 1. Fetch initial due cards
   const initialCards = useLiveQuery(async () => {
     let allCards = await db.cards.toArray()
     
@@ -34,21 +34,41 @@ export function ReviewPage() {
     return allCards.filter(c => c.due <= Date.now())
   }, [folderId, setId, tagsParam, uncategorized])
 
-  // 2. Local Session Queue State
   const [sessionQueue, setSessionQueue] = useState<Card[]>([])
 
-  // 3. Sync fetched cards into local queue (only when fetched or empty)
   useEffect(() => {
     if (initialCards && initialCards.length > 0) {
       setSessionQueue(initialCards)
     }
   }, [initialCards])
 
+  // Determine front/back text based on direction
+  const currentCard = sessionQueue[0]
+  const cardDisplay = useMemo(() => {
+    if (!currentCard) return { front: '', back: '' }
+    
+    let showFront = currentCard.front
+    let showBack = currentCard.back
+
+    if (direction === 'native_to_target') {
+      showFront = currentCard.back
+      showBack = currentCard.front
+    } else if (direction === 'mixed') {
+      // Deterministic random based on card ID so it doesn't change while viewing
+      const charCodeSum = currentCard.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
+      if (charCodeSum % 2 === 0) {
+        showFront = currentCard.back
+        showBack = currentCard.front
+      }
+    }
+
+    return { front: showFront, back: showBack }
+  }, [currentCard, direction])
+
   if (initialCards === undefined) return <p>Loading cards...</p>
   
   const backTo = setId ? `/runner/${setId}` : '/cards'
 
-  // 4. Empty queue = Session Finished
   if (sessionQueue.length === 0) {
     return (
       <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center', marginTop: '4rem' }}>
@@ -59,8 +79,6 @@ export function ReviewPage() {
     )
   }
 
-  const currentCard = sessionQueue[0]
-
   const handleRating = async (rating: 'again' | 'good') => {
     const now = Date.now()
     let newInterval = currentCard.interval
@@ -68,25 +86,21 @@ export function ReviewPage() {
 
     if (rating === 'again') {
       newInterval = 0
-      newDue = now + 60 * 1000 // 1 minute
+      newDue = now + 60 * 1000
     } else {
       newInterval = currentCard.interval === 0 ? 1 : currentCard.interval * 2
       newDue = now + newInterval * 24 * 60 * 60 * 1000
     }
 
-    // Update DB
     await db.cards.update(currentCard.id, {
       interval: newInterval, due: newDue, reps: currentCard.reps + 1
     })
 
-    // Update Local Queue
     setSessionQueue(prevQueue => {
       const rest = prevQueue.slice(1)
       if (rating === 'again') {
-        // Send to the end of the current session queue
         return [...rest, { ...currentCard, due: newDue, interval: newInterval, reps: currentCard.reps + 1 }]
       }
-      // Remove completely from session queue
       return rest
     })
     
@@ -97,7 +111,12 @@ export function ReviewPage() {
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
         <Link to={backTo} style={{ color: '#94a3b8', textDecoration: 'none' }}>← Quit Review</Link>
-        <span style={{ color: '#94a3b8' }}>Cards in queue: {sessionQueue.length}</span>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <span style={{ color: '#8b5cf6', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>
+            {direction.replace(/_/g, ' ')}
+          </span>
+          <span style={{ color: '#94a3b8' }}>Queue: {sessionQueue.length}</span>
+        </div>
       </div>
 
       <div 
@@ -109,12 +128,12 @@ export function ReviewPage() {
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', wordBreak: 'break-word', overflowWrap: 'anywhere'
         }}
       >
-        <h2 style={{ fontSize: '2rem', margin: 0, color: '#e2e8f0', lineHeight: 1.2 }}>{currentCard.front}</h2>
+        <h2 style={{ fontSize: '2rem', margin: 0, color: '#e2e8f0', lineHeight: 1.2 }}>{cardDisplay.front}</h2>
         
         {isFlipped && (
           <>
             <hr style={{ width: '50%', borderColor: '#475569', margin: '2rem 0' }} />
-            <h3 style={{ fontSize: '1.5rem', margin: 0, color: '#38bdf8', lineHeight: 1.4 }}>{currentCard.back}</h3>
+            <h3 style={{ fontSize: '1.5rem', margin: 0, color: '#38bdf8', lineHeight: 1.4 }}>{cardDisplay.back}</h3>
           </>
         )}
 

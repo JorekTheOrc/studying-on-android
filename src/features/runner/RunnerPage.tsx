@@ -5,6 +5,7 @@ import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Exercise } from '../../types'
+import { ReviewModal } from '../../shared/ReviewModal'
 
 export function RunnerPage() {
   const { setId } = useParams()
@@ -18,9 +19,10 @@ export function RunnerPage() {
   const [editingEx, setEditingEx] = useState<Exercise | null>(null)
   const [exTags, setExTags] = useState('')
 
-  // Move exercises state
   const [isMoveMode, setIsMoveMode] = useState(false)
   const [selectedExs, setSelectedExs] = useState<string[]>([])
+
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
 
   if (set === undefined || exercises === undefined || !allSets) return <p>Loading...</p>
   if (!set) return <p>Set not found. <Link to="/" style={{color: '#38bdf8'}}>Go back</Link></p>
@@ -38,10 +40,13 @@ export function RunnerPage() {
 
   const handleMoveExs = async (targetSetId: string) => {
     if (selectedExs.length === 0 || !targetSetId || !setId) return
-    // Move exercises to target set (change set_id)
     await db.exercises.where('id').anyOf(selectedExs).modify({ set_id: targetSetId })
     setSelectedExs([])
     setIsMoveMode(false)
+  }
+
+  const handleStartReview = (direction: string) => {
+    navigate(`/review?setId=${setId}&direction=${direction}`)
   }
 
   return (
@@ -59,7 +64,7 @@ export function RunnerPage() {
         </div>
         
         <button 
-          onClick={() => navigate(`/review?setId=${setId}`)}
+          onClick={() => setIsReviewModalOpen(true)}
           style={{ padding: '0.8rem 1.5rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
         >
           Review Flashcards
@@ -155,6 +160,8 @@ export function RunnerPage() {
           </div>
         </div>
       )}
+
+      <ReviewModal isOpen={isReviewModalOpen} onClose={() => setIsReviewModalOpen(false)} onSelect={handleStartReview} />
     </div>
   )
 }

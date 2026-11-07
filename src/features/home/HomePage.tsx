@@ -4,6 +4,7 @@ import { db } from '../../db'
 import { useNavigate } from 'react-router-dom'
 import type { Set } from '../../types'
 import { generateUUID } from '../../utils'
+import { ReviewModal } from '../../shared/ReviewModal'
 
 const FOLDER_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#84cc16']
 
@@ -29,6 +30,10 @@ export function HomePage() {
   const [editFolder, setEditFolder] = useState('')
   const [editTags, setEditTags] = useState('')
 
+  // Review Modal State
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [reviewBaseUrl, setReviewBaseUrl] = useState('')
+
   if (!sets || !folders) return <p>Loading database...</p>
 
   const filteredSets = sets.filter(s => {
@@ -49,12 +54,19 @@ export function HomePage() {
     setIsSelectionMode(false)
   }
 
-  const handleReviewCards = () => {
+  const openReviewModal = () => {
     const params = new URLSearchParams()
     if (selectedFolder !== 'all') {
       if (selectedFolder === 'null') params.set('uncategorized', 'true')
       else params.set('folderId', selectedFolder)
     }
+    setReviewBaseUrl(params.toString())
+    setIsReviewModalOpen(true)
+  }
+
+  const handleStartReview = (direction: string) => {
+    const params = new URLSearchParams(reviewBaseUrl)
+    params.set('direction', direction)
     navigate(`/review?${params.toString()}`)
   }
 
@@ -125,7 +137,7 @@ export function HomePage() {
               {isSelectionMode ? 'Cancel' : 'Move set(s)'}
             </button>
             <button 
-              onClick={handleReviewCards}
+              onClick={openReviewModal}
               style={{ padding: '0.4rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
             >
               🎴 Review {currentFolderName} Cards
@@ -241,6 +253,8 @@ export function HomePage() {
           </div>
         </div>
       )}
+
+      <ReviewModal isOpen={isReviewModalOpen} onClose={() => setIsReviewModalOpen(false)} onSelect={handleStartReview} />
     </div>
   )
 }
