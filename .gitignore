@@ -39,3 +39,8 @@ coverage/
 
 # Misc
 *.local
+
+# Secrets (tokens, credentials)
+token.txt
+*.token
+*secret*
