@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { generateUUID } from '../../utils'
 import { InteractiveText } from '../../shared/InteractiveText'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 export function PracticePage() {
   const { setId, exerciseId } = useParams()
@@ -69,6 +70,12 @@ export function PracticePage() {
     })
   }, [exerciseId, exercise?.items.length])
 
+  // Shuffle MC options and memoize them
+  const shuffledOptions = useMemo(() => {
+    if (!exercise || exercise.type !== 'multiple_choice' || !exercise.items[currentIndex]) return []
+    return [...(exercise.items[currentIndex].options || [])].sort(() => Math.random() - 0.5)
+  }, [exercise, currentIndex])
+
   if (!exercise || !set) return <p>Loading exercise...</p>
   
   const item = exercise.items[currentIndex]
@@ -118,7 +125,7 @@ export function PracticePage() {
     const normalize = (s: any) => String(s).toLowerCase().trim()
     let answerToSave = userAnswer
 
-    if (exercise.type === 'multiple_choice' || exercise.type === 'true_false_ng') {
+    if (exercise.type === 'multiple_choice' || exercise.type === 'true_false_ng' || exercise.type === 'true_false') {
       isCorrect = userAnswer === correctAnswer
     } 
     else if (['fill_blank', 'short_answer', 'sentence_completion'].includes(exercise.type)) {
@@ -147,7 +154,7 @@ export function PracticePage() {
 
     await db.progress.add({
       id: generateUUID(), set_id: setId!, item_id: item.id,
-      correct: isCorrect, used_hint: false, used_translation: viewedWords.length > 0,
+      correct: isCorrect, used_hint: showHint, used_translation: viewedWords.length > 0,
       viewed_vocabulary: viewedWords,
       timestamp: Date.now(), duration_ms: Date.now() - startTime
     })
@@ -176,7 +183,7 @@ export function PracticePage() {
       const opt = item.options?.find(o => o.id === item.answer[0])
       return opt ? opt.text : String(item.answer[0])
     }
-    if (exercise.type === 'true_false_ng') {
+    if (exercise.type === 'true_false_ng' || exercise.type === 'true_false') {
       return item.answer[0] === 'T' ? 'True' : item.answer[0] === 'F' ? 'False' : 'Not Given'
     }
     if (exercise.type === 'ordering') return item.correct_order?.join(' ')
@@ -235,11 +242,11 @@ export function PracticePage() {
       </div>
 
       {showTheory && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto', width: '100%' }}>
+        <div onClick={() => setShowTheory(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto', width: '100%' }}>
             <h2 style={{ marginTop: 0 }}>Theory</h2>
             <div style={{ lineHeight: 1.6, color: '#e2e8f0' }}>
-              <ReactMarkdown>{set.theory_md}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{set.theory_md}</ReactMarkdown>
             </div>
             <button onClick={() => setShowTheory(false)} style={{ marginTop: '1.5rem', padding: '0.8rem 1.5rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '100%', fontWeight: 'bold' }}>Close</button>
           </div>
@@ -263,21 +270,21 @@ export function PracticePage() {
 
       {exercise.type === 'multiple_choice' && (
         <div style={{ display: 'grid', gap: '0.5rem', marginTop: '1.5rem' }}>
-          {item.options?.map(opt => (
+          {shuffledOptions.map(opt => (
             <button key={opt.id} onClick={() => setUserAnswer(opt.id)} disabled={status !== 'idle'}
               style={{ padding: '1rem', textAlign: 'left', fontSize: '1.1rem', cursor: status === 'idle' ? 'pointer' : 'default',
                 background: userAnswer === opt.id ? (status === 'correct' ? '#166534' : status === 'incorrect' ? '#7f1d1d' : '#334155') : '#1e293b',
                 border: '1px solid ' + (userAnswer === opt.id ? '#38bdf8' : '#475569'), color: '#fff', borderRadius: '8px', transition: '0.2s' }}
             >
-              {opt.id.toUpperCase()}) <InteractiveText text={opt.text} vocabulary={opt.vocabulary} onWordClick={handleWordClick} />
+              <InteractiveText text={opt.text} vocabulary={opt.vocabulary} onWordClick={handleWordClick} />
             </button>
           ))}
         </div>
       )}
       
-      {exercise.type === 'true_false_ng' && (
+      {(exercise.type === 'true_false_ng' || exercise.type === 'true_false') && (
         <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-          {['T', 'F', 'NG'].map(opt => (
+          {(exercise.type === 'true_false_ng' ? ['T', 'F', 'NG'] : ['T', 'F']).map(opt => (
             <button key={opt} onClick={() => setUserAnswer(opt)} disabled={status !== 'idle'}
               style={{ flex: 1, padding: '1.5rem', fontSize: '1.2rem', fontWeight: 'bold', cursor: status === 'idle' ? 'pointer' : 'default',
                 background: userAnswer === opt ? (status === 'correct' ? '#166534' : status === 'incorrect' ? '#7f1d1d' : '#334155') : '#1e293b',
@@ -355,38 +362,6 @@ export function PracticePage() {
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Card Selection Modal */}
-      {showCardModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%' }}>
-            <h2 style={{ marginTop: 0 }}>Select words to save</h2>
-            <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Choose which looked-up words you want to add to your flashcards.</p>
-            
-            <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1.5rem' }}>
-              {viewedWords.map(word => (
-                <label key={word} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', background: '#0f172a', padding: '0.8rem', borderRadius: '4px', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={selectedWords.includes(word)}
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedWords(prev => [...prev, word])
-                      else setSelectedWords(prev => prev.filter(w => w !== word))
-                    }}
-                    style={{ width: '18px', height: '18px', accentColor: '#8b5cf6' }}
-                  />
-                  <span>{word}</span>
-                </label>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => setShowCardModal(false)} style={{ flex: 1, padding: '0.8rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
-              <button onClick={saveSelectedWords} style={{ flex: 1, padding: '0.8rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save Selected</button>
-            </div>
-          </div>
         </div>
       )}
 

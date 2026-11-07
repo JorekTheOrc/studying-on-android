@@ -7,26 +7,26 @@ export function FlashcardsPage() {
   const { setId } = useParams()
   const [isFlipped, setIsFlipped] = useState(false)
   
-  // Fetch cards that are due (or just all cards for simplicity in MVP)
+  // Only fetch cards that are due right now
   const cards = useLiveQuery(async () => {
     if (!setId) return []
     const allCards = await db.cards.where('set_id').equals(setId).toArray()
-    // In a real app we'd filter by due <= Date.now(), but for testing we show all
-    return allCards.filter(c => c.due <= Date.now() || true) 
+    return allCards.filter(c => c.due <= Date.now())
   }, [setId])
 
   if (cards === undefined) return <p>Loading cards...</p>
+  
   if (cards.length === 0) {
     return (
       <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center', marginTop: '4rem' }}>
-        <h2>No flashcards found.</h2>
-        <p style={{ color: '#94a3b8' }}>Make sure your JSON included a "cards" array.</p>
-        <Link to={`/runner/${setId}`} style={{ color: '#38bdf8' }}>← Back to Set</Link>
+        <h2>All done for now! 🎉</h2>
+        <p style={{ color: '#94a3b8' }}>No cards due for review in this set.</p>
+        <Link to={`/runner/${setId}`} style={{ display: 'inline-block', marginTop: '1rem', color: '#38bdf8' }}>← Back to Set</Link>
       </div>
     )
   }
 
-  const currentCard = cards[0] // Just show the first due card
+  const currentCard = cards[0]
 
   const handleRating = async (rating: 'again' | 'good') => {
     const now = Date.now()
@@ -37,7 +37,6 @@ export function FlashcardsPage() {
       newInterval = 0
       newDue = now + 60 * 1000 // 1 minute
     } else {
-      // Simple SM-2 approximation
       newInterval = currentCard.interval === 0 ? 1 : currentCard.interval * 2
       newDue = now + newInterval * 24 * 60 * 60 * 1000 // days
     }
@@ -49,6 +48,7 @@ export function FlashcardsPage() {
     })
 
     setIsFlipped(false)
+    // The useLiveQuery will automatically re-render and fetch the next card
   }
 
   return (
@@ -58,22 +58,22 @@ export function FlashcardsPage() {
         <span style={{ color: '#94a3b8' }}>Cards due: {cards.length}</span>
       </div>
 
-      {/* Card Container */}
       <div 
         onClick={() => !isFlipped && setIsFlipped(true)}
         style={{ 
           minHeight: '300px', background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', 
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
           padding: '2rem', cursor: isFlipped ? 'default' : 'pointer', textAlign: 'center', transition: '0.2s',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          wordBreak: 'break-word', overflowWrap: 'anywhere' // <--- Prevents long text from overflowing
         }}
       >
-        <h2 style={{ fontSize: '2rem', margin: 0, color: '#e2e8f0' }}>{currentCard.front}</h2>
+        <h2 style={{ fontSize: '2rem', margin: 0, color: '#e2e8f0', lineHeight: 1.2 }}>{currentCard.front}</h2>
         
         {isFlipped && (
           <>
             <hr style={{ width: '50%', borderColor: '#475569', margin: '2rem 0' }} />
-            <h3 style={{ fontSize: '1.5rem', margin: 0, color: '#38bdf8' }}>{currentCard.back}</h3>
+            <h3 style={{ fontSize: '1.5rem', margin: 0, color: '#38bdf8', lineHeight: 1.4 }}>{currentCard.back}</h3>
           </>
         )}
 
@@ -82,7 +82,6 @@ export function FlashcardsPage() {
         )}
       </div>
 
-      {/* Action Buttons */}
       {isFlipped && (
         <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
           <button 

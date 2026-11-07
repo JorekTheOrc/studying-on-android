@@ -1,5 +1,6 @@
 export type ExerciseType =
   | 'multiple_choice'
+  | 'true_false'
   | 'true_false_ng'
   | 'sentence_completion'
   | 'fill_blank'

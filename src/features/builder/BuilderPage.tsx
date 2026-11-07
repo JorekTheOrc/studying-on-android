@@ -4,6 +4,7 @@ import type { BuilderParams, ExerciseType } from '../../types'
 
 const EXERCISE_TYPES: { id: ExerciseType; label: string; desc: string }[] = [
   { id: 'multiple_choice', label: 'Multiple Choice', desc: 'Choose the correct option (A, B, C).' },
+  { id: 'true_false', label: 'True / False', desc: 'Decide if the statement is true or false.' },
   { id: 'true_false_ng', label: 'True / False / Not Given', desc: 'Decide if the statement is true, false, or not mentioned.' },
   { id: 'sentence_completion', label: 'Sentence Completion', desc: 'Type 1-3 words to complete the sentence.' },
   { id: 'fill_blank', label: 'Fill in the Blanks', desc: 'Type the missing words (optionally from a word box).' },
@@ -37,7 +38,6 @@ export function BuilderPage() {
     } catch (err) { console.error('Failed to copy', err) }
   }
 
-  // FIX: Allow empty strings for input fields
   const updatePlan = (type: ExerciseType, field: 'count' | 'itemsPerExercise', value: string) => {
     setParams(prev => {
       const existing = prev.plans.find(p => p.type === type) || { type, count: 0, itemsPerExercise: 5 }
