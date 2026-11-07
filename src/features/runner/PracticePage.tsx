@@ -34,9 +34,9 @@ export function PracticePage() {
   const [isFinished, setIsFinished] = useState(false)
   const [attemptCount, setAttemptCount] = useState(0)
 
-  // Reset states when item changes
+  // Reset states when item changes or exercise restarts
   useEffect(() => {
-    if (!exercise) return
+    if (!exercise || isFinished) return
     const item = exercise.items[currentIndex]
     if (!item) return
 
@@ -47,7 +47,10 @@ export function PracticePage() {
     } else if (exercise.type === 'matching') {
       setMatchingSelections({})
     }
-  }, [currentIndex, exercise])
+    
+    setUserAnswer('')
+    setStatus('idle')
+  }, [currentIndex, exercise, isFinished])
 
   // Save progress to localStorage
   useEffect(() => {
