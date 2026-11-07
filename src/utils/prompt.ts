@@ -100,7 +100,7 @@ Output only the JSON object. Nothing else.`
 
 export function generatePrompt(params: BuilderParams): string {
   const planString = params.plans
-    .filter(p => p.count > 0)
+    .filter(p => typeof p.count === 'number' && p.count > 0)
     .map(p => `${p.type} × ${p.count} (${p.itemsPerExercise} items each)`)
     .join('; ')
 

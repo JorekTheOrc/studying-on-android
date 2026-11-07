@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { generateUUID } from '../../utils'
+import { InteractiveText } from '../../shared/InteractiveText'
 
 export function PracticePage() {
   const { setId, exerciseId } = useParams()
@@ -26,22 +27,22 @@ export function PracticePage() {
   const [matchingSelections, setMatchingSelections] = useState<Record<string, string>>({})
   const [orderedTokens, setOrderedTokens] = useState<string[]>([])
   const [availableTokens, setAvailableTokens] = useState<string[]>([])
+  
+  // Vocabulary tracking
+  const [viewedWords, setViewedWords] = useState<string[]>([])
 
   const [status, setStatus] = useState<'idle' | 'correct' | 'incorrect'>('idle')
   const [startTime, setStartTime] = useState(Date.now())
-  
   const [showTheory, setShowTheory] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
   const [attemptCount, setAttemptCount] = useState(0)
 
-  // Reset states when item changes or exercise restarts
   useEffect(() => {
     if (!exercise || isFinished) return
     const item = exercise.items[currentIndex]
     if (!item) return
 
     if (exercise.type === 'ordering' && item.tokens) {
-      // Shuffle tokens for the available pool
       setAvailableTokens([...item.tokens].sort(() => Math.random() - 0.5))
       setOrderedTokens([])
     } else if (exercise.type === 'matching') {
@@ -49,16 +50,15 @@ export function PracticePage() {
     }
     
     setUserAnswer('')
+    setViewedWords([])
     setStatus('idle')
   }, [currentIndex, exercise, isFinished])
 
-  // Save progress to localStorage
   useEffect(() => {
     if (!exerciseId || isFinished) return
     localStorage.setItem(`progress_${exerciseId}`, JSON.stringify({ currentIndex, sessionAnswers }))
   }, [currentIndex, sessionAnswers, exerciseId, isFinished])
 
-  // Count attempts from DB
   useEffect(() => {
     if (!exerciseId || !exercise?.items.length) return
     db.progress.where('item_id').startsWith(exerciseId).count().then(c => {
@@ -69,6 +69,12 @@ export function PracticePage() {
   if (!exercise || !set) return <p>Loading exercise...</p>
   
   const item = exercise.items[currentIndex]
+
+  const handleWordClick = (word: string) => {
+    if (!viewedWords.includes(word)) {
+      setViewedWords(prev => [...prev, word])
+    }
+  }
 
   const checkAnswer = async () => {
     let isCorrect = false
@@ -105,7 +111,8 @@ export function PracticePage() {
 
     await db.progress.add({
       id: generateUUID(), set_id: setId!, item_id: item.id,
-      correct: isCorrect, used_hint: false, used_translation: false,
+      correct: isCorrect, used_hint: false, used_translation: viewedWords.length > 0,
+      viewed_vocabulary: viewedWords,
       timestamp: Date.now(), duration_ms: Date.now() - startTime
     })
   }
@@ -128,7 +135,6 @@ export function PracticePage() {
     return !!userAnswer
   }
 
-  // --- RENDER: RESULTS SCREEN ---
   if (isFinished) {
     const total = exercise.items.length
     const correctCount = Object.values(sessionAnswers).filter((a: any) => a.isCorrect).length
@@ -141,7 +147,6 @@ export function PracticePage() {
           <p style={{ color: '#94a3b8', margin: 0 }}>Correct answers</p>
           <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '1rem' }}>Completed {attemptCount + 1} times</p>
         </div>
-
         <h3>Review</h3>
         <div style={{ display: 'grid', gap: '1rem' }}>
           {exercise.items.map((it, idx) => {
@@ -151,13 +156,12 @@ export function PracticePage() {
                  <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{idx + 1}. {it.prompt || 'Matching/Ordering Task'}</div>
                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                    <span style={{ color: ans?.isCorrect ? '#86efac' : '#fca5a5', maxWidth: '60%' }}>You: {String(ans?.answer || 'Skipped')}</span>
-                   {!ans?.isCorrect && <span style={{ color: '#86efac', maxWidth: '40%' }}>Correct: {it.correct_order?.join(' ') || it.pairs?.map(p => `${p.left}→${p.right}`).join('; ')}</span>}
+                   {!ans?.isCorrect && <span style={{ color: '#86efac', maxWidth: '40%' }}>Correct: {it.correct_order?.join(' ') || it.pairs?.map(p => `${p.left}→${p.right}`).join('; ') || String(it.answer[0])}</span>}
                  </div>
                </div>
              )
           })}
         </div>
-        
         <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
           <button onClick={() => { setIsFinished(false); setCurrentIndex(0); setSessionAnswers({}); localStorage.removeItem(`progress_${exerciseId}`); }} style={{ flex: 1, padding: '1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Try Again</button>
           <Link to={`/runner/${setId}`} style={{ flex: 1, padding: '1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', textDecoration: 'none' }}>Back to Set</Link>
@@ -166,7 +170,6 @@ export function PracticePage() {
     )
   }
 
-  // --- RENDER: QUESTION SCREEN ---
   return (
     <div style={{ maxWidth: '700px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -189,11 +192,14 @@ export function PracticePage() {
         </div>
       )}
 
-      {item.prompt && <h2 style={{ fontSize: '1.8rem', lineHeight: 1.4, marginBottom: '2rem' }}>{item.prompt}</h2>}
+      {item.prompt && (
+        <h2 style={{ fontSize: '1.8rem', lineHeight: 1.4, marginBottom: '2rem' }}>
+          <InteractiveText text={item.prompt} vocabulary={item.vocabulary} onWordClick={handleWordClick} />
+        </h2>
+      )}
       {exercise.type === 'matching' && <h3 style={{ marginBottom: '1.5rem' }}>Match the items:</h3>}
       {exercise.type === 'ordering' && <h3 style={{ marginBottom: '1.5rem' }}>Put the words in the correct order:</h3>}
 
-      {/* Renderers */}
       {exercise.type === 'multiple_choice' && (
         <div style={{ display: 'grid', gap: '0.5rem', marginTop: '1.5rem' }}>
           {item.options?.map(opt => (
@@ -202,7 +208,7 @@ export function PracticePage() {
                 background: userAnswer === opt.id ? (status === 'correct' ? '#166534' : status === 'incorrect' ? '#7f1d1d' : '#334155') : '#1e293b',
                 border: '1px solid ' + (userAnswer === opt.id ? '#38bdf8' : '#475569'), color: '#fff', borderRadius: '8px', transition: '0.2s' }}
             >
-              {opt.id.toUpperCase()}) {opt.text}
+              {opt.id.toUpperCase()}) <InteractiveText text={opt.text} vocabulary={opt.vocabulary} onWordClick={handleWordClick} />
             </button>
           ))}
         </div>
@@ -239,15 +245,9 @@ export function PracticePage() {
               <div style={{ display: 'grid', gap: '0.5rem' }}>
                 {item.pairs?.map(p => (
                   <label key={p.right} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: status === 'idle' ? 'pointer' : 'default', padding: '0.6rem', background: matchingSelections[pair.left] === p.right ? '#334155' : '#0f172a', borderRadius: '6px', border: '1px solid ' + (matchingSelections[pair.left] === p.right ? '#38bdf8' : 'transparent') }}>
-                    <input
-                      type="radio"
-                      name={`match-${pair.left}`}
-                      value={p.right}
-                      checked={matchingSelections[pair.left] === p.right}
-                      onChange={() => setMatchingSelections(prev => ({ ...prev, [pair.left]: p.right }))}
-                      disabled={status !== 'idle'}
-                      style={{ width: '20px', height: '20px', accentColor: '#0ea5e9' }}
-                    />
+                    <input type="radio" name={`match-${pair.left}`} value={p.right} checked={matchingSelections[pair.left] === p.right}
+                      onChange={() => setMatchingSelections(prev => ({ ...prev, [pair.left]: p.right }))} disabled={status !== 'idle'}
+                      style={{ width: '20px', height: '20px', accentColor: '#0ea5e9' }} />
                     <span style={{ fontSize: '1rem' }}>{p.right}</span>
                   </label>
                 ))}

@@ -37,19 +37,22 @@ export interface Set {
   updated_at: number
 }
 
-export interface Exercise {
+export interface VocabItem {
+  text: string
+  translation: string
+}
+
+export interface Option {
   id: string
-  set_id: string
-  type: ExerciseType
-  title: string
-  instruction: string
-  items: Item[]
+  text: string
+  vocabulary?: VocabItem[]
 }
 
 export interface Item {
   id: string
   prompt?: string
-  options?: { id: string; text: string }[]
+  vocabulary?: VocabItem[]
+  options?: Option[]
   answer: (string | boolean)[]
   hint?: string
   translation?: string
@@ -60,6 +63,15 @@ export interface Item {
   tokens?: string[]
   correct_order?: string[]
   alternatives?: string[]
+}
+
+export interface Exercise {
+  id: string
+  set_id: string
+  type: ExerciseType
+  title: string
+  instruction: string
+  items: Item[]
 }
 
 export interface Card {
@@ -83,6 +95,7 @@ export interface Progress {
   correct: boolean
   used_hint: boolean
   used_translation: boolean
+  viewed_vocabulary?: string[]
   timestamp: number
   duration_ms: number
 }
@@ -92,11 +105,10 @@ export interface AppSettings {
   value: any
 }
 
-// --- Builder Types ---
 export interface ExercisePlan {
   type: ExerciseType
-  count: number
-  itemsPerExercise: number
+  count: number | ''
+  itemsPerExercise: number | ''
 }
 
 export interface BuilderParams {
