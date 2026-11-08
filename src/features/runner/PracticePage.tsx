@@ -271,9 +271,13 @@ export function PracticePage() {
             <button key={opt.id} onClick={() => setUserAnswer(opt.id)} disabled={status !== 'idle'}
               style={{ padding: '1rem', textAlign: 'left', fontSize: '1.1rem', cursor: status === 'idle' ? 'pointer' : 'default',
                 background: userAnswer === opt.id ? (status === 'correct' ? '#166534' : status === 'incorrect' ? '#7f1d1d' : '#334155') : '#1e293b',
-                border: '1px solid ' + (userAnswer === opt.id ? '#38bdf8' : '#475569'), color: '#fff', borderRadius: '8px', transition: '0.2s' }}
+                border: '1px solid ' + (userAnswer === opt.id ? '#38bdf8' : '#475569'), color: '#fff', borderRadius: '8px', transition: '0.2s',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
             >
-              <InteractiveText text={opt.text} vocabulary={opt.vocabulary} onWordClick={handleWordClick} />
+              <div style={{ flex: 1 }}>
+                <InteractiveText text={opt.text} vocabulary={opt.vocabulary} onWordClick={handleWordClick} lang={targetLang} />
+              </div>
+              <span onClick={(e) => { e.stopPropagation(); speak(opt.text, targetLang); }} style={{ cursor: 'pointer', fontSize: '1.2rem', padding: '0 0.5rem' }} title="Listen">🔊</span>
             </button>
           ))}
         </div>
