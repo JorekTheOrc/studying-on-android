@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { useNavigate } from 'react-router-dom'
@@ -8,7 +8,11 @@ import { ReviewModal } from '../../shared/ReviewModal'
 
 export function HomePage() {
   const navigate = useNavigate()
-  const sets = useLiveQuery(() => db.sets.toArray().then(arr => arr.sort((a, b) => b.created_at - a.created_at)), [])
+  const rawSets = useLiveQuery(() => db.sets.toArray(), [])
+  const sets = useMemo(() => {
+    if (!rawSets) return undefined
+    return [...rawSets].sort((a, b) => b.created_at - a.created_at)
+  }, [rawSets])
   const folders = useLiveQuery(() => db.folders.toArray(), [])
   
   const [selectedFolder, setSelectedFolder] = useState<string | 'all'>('all')
