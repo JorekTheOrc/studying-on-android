@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import type { Card } from '../../types'
+import { speak } from '../../utils/tts'
 
 export function ReviewPage() {
   const [searchParams] = useSearchParams()
@@ -35,6 +36,11 @@ export function ReviewPage() {
   }, [folderId, setId, tagsParam, uncategorized])
 
   const [sessionQueue, setSessionQueue] = useState<Card[]>([])
+  
+  // Get set info for lang
+  const set = useLiveQuery(() => setId ? db.sets.get(setId) : undefined, [setId])
+  const targetLang = set?.target_lang || 'en'
+  const nativeLang = set?.native_lang || 'ru'
 
   useEffect(() => {
     if (initialCards && initialCards.length > 0) {
@@ -42,28 +48,32 @@ export function ReviewPage() {
     }
   }, [initialCards])
 
-  // Determine front/back text based on direction
   const currentCard = sessionQueue[0]
   const cardDisplay = useMemo(() => {
-    if (!currentCard) return { front: '', back: '' }
+    if (!currentCard) return { front: '', back: '', frontLang: 'en', backLang: 'ru' }
     
     let showFront = currentCard.front
     let showBack = currentCard.back
+    let frontLang = targetLang
+    let backLang = nativeLang
 
     if (direction === 'native_to_target') {
       showFront = currentCard.back
       showBack = currentCard.front
+      frontLang = nativeLang
+      backLang = targetLang
     } else if (direction === 'mixed') {
-      // Deterministic random based on card ID so it doesn't change while viewing
       const charCodeSum = currentCard.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
       if (charCodeSum % 2 === 0) {
         showFront = currentCard.back
         showBack = currentCard.front
+        frontLang = nativeLang
+        backLang = targetLang
       }
     }
 
-    return { front: showFront, back: showBack }
-  }, [currentCard, direction])
+    return { front: showFront, back: showBack, frontLang, backLang }
+  }, [currentCard, direction, targetLang, nativeLang])
 
   if (initialCards === undefined) return <p>Loading cards...</p>
   
@@ -128,12 +138,18 @@ export function ReviewPage() {
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', wordBreak: 'break-word', overflowWrap: 'anywhere'
         }}
       >
-        <h2 style={{ fontSize: '2rem', margin: 0, color: '#e2e8f0', lineHeight: 1.2 }}>{cardDisplay.front}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: 0 }}>
+          <h2 style={{ fontSize: '2rem', margin: 0, color: '#e2e8f0', lineHeight: 1.2 }}>{cardDisplay.front}</h2>
+          <button onClick={(e) => { e.stopPropagation(); speak(cardDisplay.front, cardDisplay.frontLang) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0 }}>🔊</button>
+        </div>
         
         {isFlipped && (
           <>
             <hr style={{ width: '50%', borderColor: '#475569', margin: '2rem 0' }} />
-            <h3 style={{ fontSize: '1.5rem', margin: 0, color: '#38bdf8', lineHeight: 1.4 }}>{cardDisplay.back}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <h3 style={{ fontSize: '1.5rem', margin: 0, color: '#38bdf8', lineHeight: 1.4 }}>{cardDisplay.back}</h3>
+              <button onClick={(e) => { e.stopPropagation(); speak(cardDisplay.back, cardDisplay.backLang) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}>🔊</button>
+            </div>
           </>
         )}
 
