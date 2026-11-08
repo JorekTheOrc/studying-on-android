@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { useNavigate } from 'react-router-dom'
@@ -8,11 +8,7 @@ import { ReviewModal } from '../../shared/ReviewModal'
 
 export function HomePage() {
   const navigate = useNavigate()
-  const rawSets = useLiveQuery(() => db.sets.toArray(), [])
-  const sets = useMemo(() => {
-    if (!rawSets) return undefined
-    return [...rawSets].sort((a, b) => b.created_at - a.created_at)
-  }, [rawSets])
+  const sets = useLiveQuery(() => db.sets.toArray(), [])
   const folders = useLiveQuery(() => db.folders.toArray(), [])
   
   const [selectedFolder, setSelectedFolder] = useState<string | 'all'>('all')
@@ -37,7 +33,7 @@ export function HomePage() {
     const q = search.toLowerCase()
     const matchesSearch = s.title.toLowerCase().includes(q) || s.tags.some(t => t.toLowerCase().includes(q))
     return matchesFolder && matchesSearch
-  })
+  }).sort((a, b) => b.created_at - a.created_at)
 
   const toggleSelection = (id: string) => {
     setSelectedSets(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -107,11 +103,11 @@ export function HomePage() {
     folders.find(f => f.id === selectedFolder)?.name || ''
 
   return (
-    <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap', paddingBottom: selectedSets.length > 0 ? '80px' : '0' }}>
+    <div className="home-layout">
       
-      {/* Sidebar: Folders */}
-      <div style={{ width: '220px', background: '#1e293b', borderRadius: '8px', padding: '1rem', border: '1px solid #334155', flexShrink: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      {/* Folders Container */}
+      <div className="folders-panel">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }} className="folder-header-actions">
           <h3 style={{ margin: 0, color: '#e2e8f0' }}>Folders</h3>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button onClick={() => setIsEditingFolders(!isEditingFolders)} style={{ background: isEditingFolders ? '#ef4444' : '#334155', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', padding: '0.2rem 0.4rem', fontSize: '0.8rem' }} title="Rename folders">
@@ -121,7 +117,7 @@ export function HomePage() {
           </div>
         </div>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        <div className="folders-list">
           <button onClick={() => !isEditingFolders && setSelectedFolder('all')} style={{ textAlign: 'left', background: selectedFolder === 'all' ? '#334155' : 'transparent', color: selectedFolder === 'all' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: isEditingFolders ? 'default' : 'pointer', fontWeight: 'bold' }}>All Sets</button>
           <button onClick={() => !isEditingFolders && setSelectedFolder('null')} style={{ textAlign: 'left', background: selectedFolder === 'null' ? '#334155' : 'transparent', color: selectedFolder === 'null' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: isEditingFolders ? 'default' : 'pointer' }}>Uncategorized</button>
           
@@ -149,19 +145,29 @@ export function HomePage() {
       </div>
 
       {/* Main Content */}
-      <div style={{ flex: 1, minWidth: '300px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <h1 style={{ margin: 0 }}>My Sets</h1>
-            <button onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedSets([]); }} style={{ padding: '0.4rem 1rem', background: isSelectionMode ? '#ef4444' : '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}>{isSelectionMode ? 'Cancel' : 'Move set(s)'}</button>
-            <button onClick={openReviewModal} style={{ padding: '0.4rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}>🎴 Review {currentFolderName} Cards</button>
+      <div className="home-content">
+        <div className="home-header">
+          <h1 style={{ margin: 0 }}>My Sets</h1>
+          
+          <div className="home-actions">
+            <input 
+              type="text" placeholder="Search sets or tags..." value={search} onChange={e => setSearch(e.target.value)}
+              className="search-input"
+              style={{ padding: '0.6rem 1rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', minWidth: '200px' }}
+            />
+            <button onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedSets([]); }} style={{ padding: '0.6rem 1rem', background: isSelectionMode ? '#ef4444' : '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {isSelectionMode ? 'Cancel' : 'Move set(s)'}
+            </button>
+            <button onClick={openReviewModal} style={{ padding: '0.6rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              🎴 Review {currentFolderName}
+            </button>
           </div>
-          <input type="text" placeholder="Search sets or tags..." value={search} onChange={e => setSearch(e.target.value)} style={{ padding: '0.6rem 1rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', width: '250px' }} />
         </div>
 
         {filteredSets.length === 0 ? (
-          <div style={{ padding: '2rem', border: '1px dashed #475569', borderRadius: '8px', textAlign: 'center', color: '#94a3b8' }}>
+          <div style={{ padding: '3rem 1rem', border: '1px dashed #475569', borderRadius: '8px', textAlign: 'center', color: '#94a3b8' }}>
             <h2 style={{ marginTop: 0, color: '#e2e8f0' }}>No sets found</h2>
+            <p>Try changing the folder or search query.</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '1rem' }}>
@@ -171,7 +177,7 @@ export function HomePage() {
               return (
                 <div key={set.id} onClick={() => isSelectionMode ? toggleSelection(set.id) : navigate(`/runner/${set.id}`)} style={{ padding: '1.5rem', background: '#1e293b', border: '1px solid ' + (isSelected ? '#0ea5e9' : '#334155'), borderLeft: `6px solid ${folderColor}`, borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem', transition: '0.2s', cursor: 'pointer' }}>
                   {isSelectionMode && (
-                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelection(set.id)} onClick={e => e.stopPropagation()} style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9' }} />
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelection(set.id)} onClick={e => e.stopPropagation()} style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9', flexShrink: 0 }} />
                   )}
                   <div style={{ flex: 1 }}>
                     <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>{set.title}</h3>
@@ -194,9 +200,9 @@ export function HomePage() {
       </div>
 
       {selectedSets.length > 0 && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1e293b', borderTop: '1px solid #334155', padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', zIndex: 900, boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.1)' }}>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1e293b', borderTop: '1px solid #334155', padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', zIndex: 900, boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.1)', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 'bold', color: '#38bdf8' }}>{selectedSets.length} selected</span>
-          <select onChange={(e) => handleBulkMove(e.target.value === 'null' ? null : e.target.value)} defaultValue="" style={{ padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', cursor: 'pointer' }}>
+          <select onChange={(e) => handleBulkMove(e.target.value === 'null' ? null : e.target.value)} defaultValue="" style={{ padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', cursor: 'pointer', flex: 1, minWidth: '150px' }}>
             <option value="" disabled>Move to folder...</option>
             <option value="null">Uncategorized</option>
             {folders.filter(f => f.parent_id === null).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -207,7 +213,7 @@ export function HomePage() {
 
       {editingSet && (
         <div onClick={() => setEditingSet(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ marginTop: 0 }}>Edit Set: {editingSet.title}</h2>
             <div style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>

@@ -55,17 +55,17 @@ export function RunnerPage() {
         <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none' }}>← Back to My Sets</Link>
       </div>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
         <div>
-          <h1 style={{ marginBottom: '0.2rem' }}>{set.title}</h1>
-          <p style={{ color: '#94a3b8', marginTop: 0, marginBottom: '2rem' }}>
+          <h1 style={{ marginBottom: '0.2rem', marginTop: 0 }}>{set.title}</h1>
+          <p style={{ color: '#94a3b8', marginTop: 0, marginBottom: 0 }}>
             Level: {set.level} | Lang: {set.target_lang} | Exercises: {exercises.length}
           </p>
         </div>
         
         <button 
           onClick={() => setIsReviewModalOpen(true)}
-          style={{ padding: '0.8rem 1.5rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+          style={{ padding: '0.8rem 1.5rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', width: '100%', maxWidth: '250px' }}
         >
           Review Flashcards
         </button>
@@ -102,12 +102,12 @@ export function RunnerPage() {
                 <div 
                   key={ex.id} 
                   onClick={() => isMoveMode ? toggleExSelection(ex.id) : navigate(`/runner/${setId}/practice/${ex.id}`)}
-                  style={{ background: '#1e293b', padding: '1.5rem', borderRadius: '8px', border: '1px solid ' + (isSelected ? '#0ea5e9' : '#334155'), display: 'flex', gap: '1rem', alignItems: 'center', cursor: 'pointer', transition: '0.2s' }}
+                  style={{ background: '#1e293b', padding: '1.5rem', borderRadius: '8px', border: '1px solid ' + (isSelected ? '#0ea5e9' : '#334155'), display: 'flex', gap: '1rem', alignItems: 'center', cursor: 'pointer', transition: '0.2s', flexWrap: 'wrap' }}
                 >
                   {isMoveMode && (
                     <input type="checkbox" checked={isSelected} onChange={() => toggleExSelection(ex.id)} onClick={e => e.stopPropagation()} style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9' }} />
                   )}
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: '200px' }}>
                     <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.3rem' }}>Exercise {index + 1}</div>
                     <h3 style={{ margin: '0 0 0.5rem 0', color: '#e2e8f0' }}>{ex.title}</h3>
                     <div style={{ color: '#64748b', fontSize: '0.9rem' }}>{ex.items.length} items</div>
@@ -117,9 +117,9 @@ export function RunnerPage() {
                       </div>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }} onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
                     <button onClick={() => { setEditingEx(ex); setExTags((ex.tags || []).join(', ')); }} style={{ padding: '0.6rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }} title="Edit Tags">✏️</button>
-                    <button onClick={() => navigate(`/runner/${setId}/practice/${ex.id}`)} style={{ padding: '0.8rem 1.5rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Start Practice</button>
+                    <button onClick={() => navigate(`/runner/${setId}/practice/${ex.id}`)} style={{ padding: '0.8rem 1.5rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', flex: 1 }}>Start Practice</button>
                   </div>
                 </div>
               )
@@ -129,12 +129,12 @@ export function RunnerPage() {
       )}
 
       {selectedExs.length > 0 && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1e293b', borderTop: '1px solid #334155', padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', zIndex: 900, boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.1)' }}>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1e293b', borderTop: '1px solid #334155', padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', zIndex: 900, boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.1)', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 'bold', color: '#38bdf8' }}>{selectedExs.length} selected</span>
           <select 
             onChange={(e) => handleMoveExs(e.target.value)}
             defaultValue=""
-            style={{ padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', cursor: 'pointer' }}
+            style={{ padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', cursor: 'pointer', flex: 1, minWidth: '150px' }}
           >
             <option value="" disabled>Move to set...</option>
             {allSets.filter(s => s.id !== setId).map(s => (
