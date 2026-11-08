@@ -4,10 +4,12 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import type { Card } from '../../types'
 import { speak } from '../../utils/tts'
+import { useTtsEnabled } from '../../utils/useTtsEnabled'
 
 export function ReviewPage() {
   const [searchParams] = useSearchParams()
   const [isFlipped, setIsFlipped] = useState(false)
+  const ttsEnabled = useTtsEnabled()
   
   const folderId = searchParams.get('folderId')
   const setId = searchParams.get('setId')
@@ -37,7 +39,6 @@ export function ReviewPage() {
 
   const [sessionQueue, setSessionQueue] = useState<Card[]>([])
   
-  // Get set info for lang
   const set = useLiveQuery(() => setId ? db.sets.get(setId) : undefined, [setId])
   const targetLang = set?.target_lang || 'en'
   const nativeLang = set?.native_lang || 'ru'
@@ -140,7 +141,9 @@ export function ReviewPage() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: 0 }}>
           <h2 style={{ fontSize: '2rem', margin: 0, color: '#e2e8f0', lineHeight: 1.2 }}>{cardDisplay.front}</h2>
-          <button onClick={(e) => { e.stopPropagation(); speak(cardDisplay.front, cardDisplay.frontLang) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0 }}>🔊</button>
+          {ttsEnabled && (
+            <button onClick={(e) => { e.stopPropagation(); speak(cardDisplay.front, cardDisplay.frontLang) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0 }}>🔊</button>
+          )}
         </div>
         
         {isFlipped && (
@@ -148,7 +151,9 @@ export function ReviewPage() {
             <hr style={{ width: '50%', borderColor: '#475569', margin: '2rem 0' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <h3 style={{ fontSize: '1.5rem', margin: 0, color: '#38bdf8', lineHeight: 1.4 }}>{cardDisplay.back}</h3>
-              <button onClick={(e) => { e.stopPropagation(); speak(cardDisplay.back, cardDisplay.backLang) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}>🔊</button>
+              {ttsEnabled && (
+                <button onClick={(e) => { e.stopPropagation(); speak(cardDisplay.back, cardDisplay.backLang) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}>🔊</button>
+              )}
             </div>
           </>
         )}

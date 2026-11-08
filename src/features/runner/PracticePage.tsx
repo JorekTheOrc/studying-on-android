@@ -4,12 +4,14 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { generateUUID } from '../../utils'
 import { speak } from '../../utils/tts'
+import { useTtsEnabled } from '../../utils/useTtsEnabled'
 import { InteractiveText } from '../../shared/InteractiveText'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 export function PracticePage() {
   const { setId, exerciseId } = useParams()
+  const ttsEnabled = useTtsEnabled()
   
   const exercise = useLiveQuery(() => exerciseId ? db.exercises.get(exerciseId) : undefined, [exerciseId])
   const set = useLiveQuery(() => setId ? db.sets.get(setId) : undefined, [setId])
@@ -254,8 +256,10 @@ export function PracticePage() {
 
       {item.prompt && (
         <h2 style={{ fontSize: '1.8rem', lineHeight: 1.4, marginBottom: '2rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-          <InteractiveText text={item.prompt} vocabulary={item.vocabulary} onWordClick={handleWordClick} lang={targetLang} />
-          <button onClick={() => speak(item.prompt!, targetLang)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: '0.2rem' }} title="Listen">🔊</button>
+          <InteractiveText text={item.prompt} vocabulary={item.vocabulary} onWordClick={handleWordClick} lang={targetLang} ttsEnabled={ttsEnabled} />
+          {ttsEnabled && (
+            <button onClick={() => speak(item.prompt!, targetLang)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: '0.2rem' }} title="Listen">🔊</button>
+          )}
         </h2>
       )}
 
@@ -278,9 +282,11 @@ export function PracticePage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
             >
               <div style={{ flex: 1 }}>
-                <InteractiveText text={opt.text} vocabulary={opt.vocabulary} onWordClick={handleWordClick} lang={targetLang} />
+                <InteractiveText text={opt.text} vocabulary={opt.vocabulary} onWordClick={handleWordClick} lang={targetLang} ttsEnabled={ttsEnabled} />
               </div>
-              <span onClick={(e) => { e.stopPropagation(); speak(opt.text, targetLang); }} style={{ cursor: 'pointer', fontSize: '1.2rem', padding: '0 0.5rem' }} title="Listen">🔊</span>
+              {ttsEnabled && (
+                <span onClick={(e) => { e.stopPropagation(); speak(opt.text, targetLang); }} style={{ cursor: 'pointer', fontSize: '1.2rem', padding: '0 0.5rem' }} title="Listen">🔊</span>
+              )}
             </button>
           ))}
         </div>
@@ -315,7 +321,7 @@ export function PracticePage() {
             <div key={pair.left} style={{ background: '#1e293b', padding: '1rem', borderRadius: '8px', border: '1px solid #334155' }}>
               <div style={{ fontWeight: 'bold', marginBottom: '0.8rem', fontSize: '1.1rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {pair.left}
-                <button onClick={() => speak(pair.left, targetLang)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: 0 }}>🔊</button>
+                {ttsEnabled && <button onClick={() => speak(pair.left, targetLang)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: 0 }}>🔊</button>}
               </div>
               <div style={{ display: 'grid', gap: '0.5rem' }}>
                 {item.pairs?.map(p => (
@@ -324,7 +330,7 @@ export function PracticePage() {
                       onChange={() => setMatchingSelections(prev => ({ ...prev, [pair.left]: p.right }))} disabled={status !== 'idle'}
                       style={{ width: '20px', height: '20px', accentColor: '#0ea5e9' }} />
                     <span style={{ fontSize: '1rem', flex: 1 }}>{p.right}</span>
-                    <button onClick={(e) => { e.preventDefault(); speak(p.right, targetLang); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: 0 }}>🔊</button>
+                    {ttsEnabled && <button onClick={(e) => { e.preventDefault(); speak(p.right, targetLang); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: 0 }}>🔊</button>}
                   </label>
                 ))}
               </div>

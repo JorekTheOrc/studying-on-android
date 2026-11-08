@@ -8,9 +8,10 @@ interface Props {
   onWordClick?: (word: string) => void
   style?: React.CSSProperties
   lang?: string
+  ttsEnabled?: boolean
 }
 
-export function InteractiveText({ text, vocabulary, onWordClick, style, lang = 'en' }: Props) {
+export function InteractiveText({ text, vocabulary, onWordClick, style, lang = 'en', ttsEnabled = true }: Props) {
   const [activeWord, setActiveWord] = useState<string | null>(null)
   const containerRef = useRef<HTMLSpanElement>(null)
 
@@ -64,14 +65,18 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <strong>{match.translation}</strong>
-                    <button onClick={(e) => { e.stopPropagation(); speak(match.text, lang); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }} title="Listen">🔊</button>
+                    {ttsEnabled && (
+                      <button onClick={(e) => { e.stopPropagation(); speak(match.text, lang); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }} title="Listen">🔊</button>
+                    )}
                   </div>
                   {innerWords.length > 0 && (
                     <div style={{ marginTop: '0.3rem', paddingTop: '0.3rem', borderTop: '1px solid #334155', fontSize: '0.8rem', color: '#94a3b8' }}>
                       {innerWords.map((iw, idx) => (
                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
                           <span>{iw.text}: {iw.translation}</span>
-                          <button onClick={(e) => { e.stopPropagation(); speak(iw.text, lang); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }} title="Listen">🔊</button>
+                          {ttsEnabled && (
+                            <button onClick={(e) => { e.stopPropagation(); speak(iw.text, lang); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }} title="Listen">🔊</button>
+                          )}
                         </div>
                       ))}
                     </div>
