@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { generateUUID } from '../../utils'
+import { speak } from '../../utils/tts'
 import { InteractiveText } from '../../shared/InteractiveText'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -78,6 +79,7 @@ export function PracticePage() {
   if (!exercise || !set) return <p>Loading exercise...</p>
   
   const item = exercise.items[currentIndex]
+  const targetLang = set.target_lang || 'en'
 
   const openCardModal = () => {
     setSelectedWords(viewedWords)
@@ -251,8 +253,9 @@ export function PracticePage() {
       )}
 
       {item.prompt && (
-        <h2 style={{ fontSize: '1.8rem', lineHeight: 1.4, marginBottom: '2rem' }}>
-          <InteractiveText text={item.prompt} vocabulary={item.vocabulary} onWordClick={handleWordClick} />
+        <h2 style={{ fontSize: '1.8rem', lineHeight: 1.4, marginBottom: '2rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+          <InteractiveText text={item.prompt} vocabulary={item.vocabulary} onWordClick={handleWordClick} lang={targetLang} />
+          <button onClick={() => speak(item.prompt!, targetLang)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: '0.2rem' }} title="Listen">🔊</button>
         </h2>
       )}
 
@@ -310,14 +313,18 @@ export function PracticePage() {
         <div style={{ display: 'grid', gap: '1.5rem' }}>
           {item.pairs.map(pair => (
             <div key={pair.left} style={{ background: '#1e293b', padding: '1rem', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '0.8rem', fontSize: '1.1rem', color: '#38bdf8' }}>{pair.left}</div>
+              <div style={{ fontWeight: 'bold', marginBottom: '0.8rem', fontSize: '1.1rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {pair.left}
+                <button onClick={() => speak(pair.left, targetLang)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: 0 }}>🔊</button>
+              </div>
               <div style={{ display: 'grid', gap: '0.5rem' }}>
                 {item.pairs?.map(p => (
                   <label key={p.right} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: status === 'idle' ? 'pointer' : 'default', padding: '0.6rem', background: matchingSelections[pair.left] === p.right ? '#334155' : '#0f172a', borderRadius: '6px', border: '1px solid ' + (matchingSelections[pair.left] === p.right ? '#38bdf8' : 'transparent') }}>
                     <input type="radio" name={`match-${pair.left}`} value={p.right} checked={matchingSelections[pair.left] === p.right}
                       onChange={() => setMatchingSelections(prev => ({ ...prev, [pair.left]: p.right }))} disabled={status !== 'idle'}
                       style={{ width: '20px', height: '20px', accentColor: '#0ea5e9' }} />
-                    <span style={{ fontSize: '1rem' }}>{p.right}</span>
+                    <span style={{ fontSize: '1rem', flex: 1 }}>{p.right}</span>
+                    <button onClick={(e) => { e.preventDefault(); speak(p.right, targetLang); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: 0 }}>🔊</button>
                   </label>
                 ))}
               </div>

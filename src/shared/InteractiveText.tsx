@@ -1,18 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import type { VocabItem } from '../types'
+import { speak } from '../utils/tts'
 
 interface Props {
   text: string
   vocabulary?: VocabItem[]
   onWordClick?: (word: string) => void
   style?: React.CSSProperties
+  lang?: string
 }
 
-export function InteractiveText({ text, vocabulary, onWordClick, style }: Props) {
+export function InteractiveText({ text, vocabulary, onWordClick, style, lang = 'en' }: Props) {
   const [activeWord, setActiveWord] = useState<string | null>(null)
   const containerRef = useRef<HTMLSpanElement>(null)
 
-  // Close tooltip when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -25,7 +26,6 @@ export function InteractiveText({ text, vocabulary, onWordClick, style }: Props)
 
   if (!vocabulary || vocabulary.length === 0) return <span style={style}>{text}</span>
 
-  // Sort by length descending to match phrases first
   const sortedVocab = [...vocabulary].sort((a, b) => b.text.length - a.text.length)
   const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(`(${sortedVocab.map(v => escapeRegExp(v.text)).join('|')})`, 'gi')
@@ -37,7 +37,6 @@ export function InteractiveText({ text, vocabulary, onWordClick, style }: Props)
       {parts.map((part, i) => {
         const match = sortedVocab.find(v => v.text.toLowerCase() === part.toLowerCase())
         if (match) {
-          // Find inner words that are part of this phrase (for nested display)
           const innerWords = vocabulary.filter(v => v.text !== match.text && match.text.toLowerCase().includes(v.text.toLowerCase()))
 
           return (
@@ -63,11 +62,17 @@ export function InteractiveText({ text, vocabulary, onWordClick, style }: Props)
                     display: 'flex', flexDirection: 'column', gap: '0.3rem', whiteSpace: 'nowrap'
                   }}
                 >
-                  <strong>{match.translation}</strong>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
+                    <strong>{match.translation}</strong>
+                    <button onClick={(e) => { e.stopPropagation(); speak(match.text, lang); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }} title="Listen">🔊</button>
+                  </div>
                   {innerWords.length > 0 && (
                     <div style={{ marginTop: '0.3rem', paddingTop: '0.3rem', borderTop: '1px solid #334155', fontSize: '0.8rem', color: '#94a3b8' }}>
                       {innerWords.map((iw, idx) => (
-                        <div key={idx}>{iw.text}: {iw.translation}</div>
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                          <span>{iw.text}: {iw.translation}</span>
+                          <button onClick={(e) => { e.stopPropagation(); speak(iw.text, lang); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }} title="Listen">🔊</button>
+                        </div>
                       ))}
                     </div>
                   )}
