@@ -26,9 +26,9 @@ export function Layout() {
       <nav className={`sidebar ${hidden ? 'hidden' : ''}`}>
         <h2>Study</h2>
         <NavLink replace to="/" className={({ isActive }) => (isActive ? 'active' : '')} end>Home</NavLink>
+        <NavLink replace to="/stats" className={({ isActive }) => (isActive ? 'active' : '')}>Stats</NavLink>
         <NavLink replace to="/cards" className={({ isActive }) => (isActive ? 'active' : '')}>Cards</NavLink>
-        <NavLink replace to="/builder" className={({ isActive }) => (isActive ? 'active' : '')}>Builder</NavLink>
-        <NavLink replace to="/import" className={({ isActive }) => (isActive ? 'active' : '')}>Import</NavLink>
+        <NavLink replace to="/studio" className={({ isActive }) => (isActive ? 'active' : '')}>Studio</NavLink>
         <NavLink replace to="/settings" className={({ isActive }) => (isActive ? 'active' : '')}>Settings</NavLink>
       </nav>
       
