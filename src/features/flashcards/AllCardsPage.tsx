@@ -47,7 +47,7 @@ export function AllCardsPage() {
     if (filterSet !== 'all' && c.set_id !== filterSet) return false
     if (filterTags.length > 0 && !filterTags.some(t => c.tags.includes(t))) return false
     const q = search.toLowerCase()
-    if (q && !c.front.toLowerCase().includes(q) && !c.back.toLowerCase().includes(q)) return false
+    if (q && !c.front.toLowerCase().includes(q) && !(c.back || '').toLowerCase().includes(q)) return false
     
     return true
   }).sort((a, b) => b.due - a.due)
@@ -76,7 +76,7 @@ export function AllCardsPage() {
   const openEdit = (card: Card) => {
     setEditingCard(card)
     setEditFront(card.front)
-    setEditBack(card.back)
+    setEditBack(card.back || '')
     setEditTags(card.tags.join(', '))
   }
 

@@ -46,7 +46,7 @@ export function SettingsPage() {
       // Header + rows
       const rows = cards.map(c => {
         const front = escapeCsv(c.front)
-        const back = escapeCsv(c.back)
+        const back = escapeCsv(c.back || '')
         const tags = escapeCsv(c.tags.join(' '))
         return `${front},${back},${tags}`
       })
