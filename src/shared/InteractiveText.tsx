@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { VocabItem, ImageResult } from '../types'
 import { speak } from '../utils/tts'
-import { getCachedImage, searchImages, saveChosenImage, clearImage, saveManualImage } from '../utils/imageSearch'
+import { getCachedImage, searchImages, saveChosenImage, clearImage } from '../utils/imageSearch'
 
 interface Props {
   text: string
@@ -21,8 +21,6 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
   const [currentTitle, setCurrentTitle] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showBelow, setShowBelow] = useState(false)
-  const [manualUrl, setManualUrl] = useState('')
-  const [isAddingManual, setIsAddingManual] = useState(false)
   const containerRef = useRef<HTMLSpanElement>(null)
 
   // Load image when active word changes
@@ -105,17 +103,6 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
     setShowBelow(rect.top < window.innerHeight * 0.45)
     setActiveWord(activeWord === word ? null : word)
     if (onWordClick) onWordClick(word)
-  }
-
-  const handleManualSave = async () => {
-    if (!activeWord || !manualUrl.trim()) return
-    await saveManualImage(activeWord, lang, manualUrl.trim())
-    setCurrentImage(manualUrl.trim())
-    setCandidates([{ url: manualUrl.trim(), thumbnail: manualUrl.trim(), title: 'Manual' }])
-    setCurrentIdx(0)
-    setCurrentTitle('Manual')
-    setIsAddingManual(false)
-    setManualUrl('')
   }
 
   const goToIndex = async (newIdx: number) => {
@@ -261,39 +248,6 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
                     </div>
                   )}
 
-                  {/* No image found + manual input */}
-                  {imagesEnabled && !currentImage && !isLoading && candidates.length === 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                      {!isAddingManual ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setIsAddingManual(true) }}
-                          style={{
-                            padding: '0.3rem', background: 'transparent', border: '1px dashed #475569',
-                            color: '#94a3b8', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem',
-                          }}
-                        >
-                          No image found. Add URL manually?
-                        </button>
-                      ) : (
-                        <div style={{ display: 'flex', gap: '0.2rem' }}>
-                          <input
-                            type="text"
-                            placeholder="https://..."
-                            value={manualUrl}
-                            onChange={(e) => setManualUrl(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ flex: 1, padding: '0.2rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', fontSize: '0.7rem', minWidth: 0 }}
-                          />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleManualSave() }}
-                            style={{ padding: '0 0.4rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem' }}
-                          >
-                            OK
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* TRANSLATION + SPEAKER */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>

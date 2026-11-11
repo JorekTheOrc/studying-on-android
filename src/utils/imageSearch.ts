@@ -170,27 +170,3 @@ export async function clearImage(word: string, lang: string = 'en'): Promise<voi
     await db.imageCache.delete(cacheKey)
   } catch {}
 }
-
-// Save a manually provided image URL
-export async function saveManualImage(
-  word: string,
-  lang: string,
-  url: string
-): Promise<void> {
-  const cacheKey = `${lang}:${word.toLowerCase().trim()}`
-  const dataUrl = await urlToDataUrl(url).catch(() => undefined)
-
-  try {
-    await db.imageCache.put({
-      word: cacheKey,
-      url,
-      dataUrl,
-      lang,
-      fetchedAt: Date.now(),
-      candidates: [{ url, thumbnail: url, title: 'Manual' }],
-      currentIndex: 0,
-    })
-  } catch (e) {
-    console.warn('[Image Cache] Save failed:', e)
-  }
-}
