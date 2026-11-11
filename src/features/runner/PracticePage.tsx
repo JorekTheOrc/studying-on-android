@@ -6,6 +6,7 @@ import { generateUUID } from '../../utils'
 import { speak } from '../../utils/tts'
 import { useTtsEnabled } from '../../utils/useTtsEnabled'
 import { useEscapeKey } from '../../shared/useEscapeKey'
+import { Button, Input } from '../../shared/ui'
 import { InteractiveText } from '../../shared/InteractiveText'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -229,7 +230,7 @@ export function PracticePage() {
           })}
         </div>
         <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
-          <button onClick={() => { setIsFinished(false); setCurrentIndex(0); setSessionAnswers({}); localStorage.removeItem(`progress_${exerciseId}`); }} style={{ flex: 1, padding: '1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Try Again</button>
+          <Button variant="primary" fullWidth onClick={() => { setIsFinished(false); setCurrentIndex(0); setSessionAnswers({}); localStorage.removeItem(`progress_${exerciseId}`); }}>Try Again</Button>
           <Link to={`/runner/${setId}`} style={{ flex: 1, padding: '1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', textDecoration: 'none' }}>Back to Set</Link>
         </div>
       </div>
@@ -242,10 +243,10 @@ export function PracticePage() {
         <Link to={`/runner/${setId}`} style={{ color: '#94a3b8', textDecoration: 'none' }}>← Quit</Link>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {item.hint && (
-            <button onClick={() => setShowHint(!showHint)} style={{ padding: '0.4rem 1rem', background: '#eab308', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>Hint 💡</button>
+            <Button size="sm" variant="warning" onClick={() => setShowHint(!showHint)}>Hint 💡</Button>
           )}
           {set.theory_md && (
-            <button onClick={() => setShowTheory(true)} style={{ padding: '0.4rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>Theory 📖</button>
+            <Button size="sm" variant="purple" onClick={() => setShowTheory(true)}>Theory 📖</Button>
           )}
           <span style={{ color: '#94a3b8' }}>Item {currentIndex + 1} of {exercise.items.length}</span>
         </div>
@@ -256,7 +257,7 @@ export function PracticePage() {
           <div onClick={e => e.stopPropagation()} className="markdown-content" style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto', width: '100%' }}>
             <h2 style={{ marginTop: 0 }}>Theory</h2>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{set.theory_md}</ReactMarkdown>
-            <button onClick={() => setShowTheory(false)} style={{ marginTop: '1.5rem', padding: '0.8rem 1.5rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '100%', fontWeight: 'bold' }}>Close</button>
+            <Button variant="secondary" fullWidth onClick={() => setShowTheory(false)} style={{ marginTop: '1.5rem' }}>Close</Button>
           </div>
         </div>
       )}
@@ -309,8 +310,11 @@ export function PracticePage() {
 
       {['fill_blank', 'short_answer', 'sentence_completion'].includes(exercise.type) && (
         <div style={{ marginTop: '1.5rem' }}>
-          <input type="text" value={userAnswer} onChange={e => setUserAnswer(e.target.value)} disabled={status !== 'idle'} placeholder="Type your answer..."
-            style={{ width: '100%', padding: '1rem', fontSize: '1.2rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px' }}
+          <Input 
+            value={userAnswer} 
+            onChange={setUserAnswer} 
+            placeholder="Type your answer..."
+            style={{ fontSize: '1.1rem', padding: '1rem' }}
             onKeyDown={e => { if (e.key === 'Enter' && status === 'idle') checkAnswer() }}
           />
         </div>
@@ -372,9 +376,7 @@ export function PracticePage() {
           {viewedWords.length > 0 && (
             <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #475569' }}>
               <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#cbd5e1' }}>You looked up: <strong>{viewedWords.join(', ')}</strong></p>
-              <button onClick={openCardModal} style={{ padding: '0.5rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                + Add to Flashcards
-              </button>
+              <Button size="sm" variant="purple" onClick={openCardModal}>+ Add to Flashcards</Button>
             </div>
           )}
         </div>
@@ -405,8 +407,8 @@ export function PracticePage() {
             </div>
 
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => setShowCardModal(false)} style={{ flex: 1, padding: '0.8rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
-              <button onClick={saveSelectedWords} style={{ flex: 1, padding: '0.8rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save Selected</button>
+              <Button variant="secondary" fullWidth onClick={() => setShowCardModal(false)}>Cancel</Button>
+              <Button variant="purple" fullWidth onClick={saveSelectedWords}>Save Selected</Button>
             </div>
           </div>
         </div>
@@ -414,9 +416,9 @@ export function PracticePage() {
 
       <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
         {status === 'idle' ? (
-          <button onClick={checkAnswer} disabled={!isAnswerProvided()} style={{ padding: '0.8rem 2rem', background: isAnswerProvided() ? '#0ea5e9' : '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: isAnswerProvided() ? 'pointer' : 'not-allowed' }}>Check</button>
+          <Button variant="primary" size="lg" onClick={checkAnswer} disabled={!isAnswerProvided()}>Check</Button>
         ) : (
-          <button onClick={nextItem} style={{ padding: '0.8rem 2rem', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}>{currentIndex === exercise.items.length - 1 ? 'Finish' : 'Next →'}</button>
+          <Button variant="success" size="lg" onClick={nextItem}>{currentIndex === exercise.items.length - 1 ? 'Finish' : 'Next →'}</Button>
         )}
       </div>
     </div>

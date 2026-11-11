@@ -6,6 +6,7 @@ import type { Card } from '../../types'
 import { ReviewModal } from '../../shared/ReviewModal'
 import { getFolderColor } from '../../utils'
 import { useModal } from '../../shared/ModalContext'
+import { Button, Input } from '../../shared/ui'
 import { useEscapeKey } from '../../shared/useEscapeKey'
 
 export function AllCardsPage() {
@@ -145,10 +146,10 @@ export function AllCardsPage() {
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
         <h1 style={{ margin: 0 }}>All Flashcards</h1>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input type="text" placeholder="Search words..." value={search} onChange={e => setSearch(e.target.value)} style={{ padding: '0.6rem 1rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', width: '200px' }} />
-          <button onClick={openReviewModal} disabled={dueCount === 0} style={{ padding: '0.6rem 1.2rem', background: dueCount > 0 ? '#8b5cf6' : '#334155', color: '#fff', border: 'none', borderRadius: '8px', cursor: dueCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}>
+          <Input value={search} onChange={setSearch} placeholder="Search words..." style={{ width: '200px' }} />
+          <Button variant="purple" onClick={openReviewModal} disabled={dueCount === 0}>
             🎴 Start Review ({dueCount})
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -245,7 +246,7 @@ export function AllCardsPage() {
                     <div>Reviews: {card.reps}</div>
                     <div>Interval: {card.interval} days</div>
                   </div>
-                  <button onClick={() => openEdit(card)} style={{ padding: '0.4rem 0.8rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Edit</button>
+                  <Button size="sm" variant="secondary" onClick={() => openEdit(card)}>Edit</Button>
                 </div>
               </div>
             )
@@ -257,18 +258,18 @@ export function AllCardsPage() {
         <div onClick={() => setEditingCard(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%' }}>
             <h2 style={{ marginTop: 0 }}>Edit Card</h2>
-            <label style={{ display: 'block', marginBottom: '1rem' }}>Front
-              <input type="text" value={editFront} onChange={e => setEditFront(e.target.value)} style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', marginTop: '0.5rem' }} />
-            </label>
-            <label style={{ display: 'block', marginBottom: '1rem' }}>Back
-              <input type="text" value={editBack} onChange={e => setEditBack(e.target.value)} style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', marginTop: '0.5rem' }} />
-            </label>
-            <label style={{ display: 'block', marginBottom: '1.5rem' }}>Tags (comma separated)
-              <input type="text" value={editTags} onChange={e => setEditTags(e.target.value)} placeholder="e.g. noun, verb, hard" style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', marginTop: '0.5rem' }} />
-            </label>
+            <div style={{ marginBottom: '1rem' }}>
+              <Input label="Front" value={editFront} onChange={setEditFront} />
+            </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <Input label="Back" value={editBack} onChange={setEditBack} />
+            </div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <Input label="Tags (comma separated)" value={editTags} onChange={setEditTags} placeholder="e.g. noun, verb, hard" />
+            </div>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => setEditingCard(null)} style={{ flex: 1, padding: '0.8rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
-              <button onClick={saveEdit} style={{ flex: 1, padding: '0.8rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save</button>
+              <Button variant="secondary" fullWidth onClick={() => setEditingCard(null)}>Cancel</Button>
+              <Button variant="primary" fullWidth onClick={saveEdit}>Save</Button>
             </div>
           </div>
         </div>

@@ -10,7 +10,7 @@ import { Button, Input, Card } from '../../shared/ui'
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { prompt } = useModal()
+  const { prompt, confirm } = useModal()
   const sets = useLiveQuery(() => db.sets.toArray(), [])
   const folders = useLiveQuery(() => db.folders.toArray(), [])
   
@@ -47,6 +47,39 @@ export function HomePage() {
     await db.sets.where('id').anyOf(selectedSets).modify({ folder_id: folderId })
     setSelectedSets([])
     setIsSelectionMode(false)
+  }
+
+  const deleteSetCompletely = async (setId: string) => {
+    await db.transaction('rw', [db.sets, db.exercises, db.cards, db.progress], async () => {
+      await db.exercises.where('set_id').equals(setId).delete()
+      await db.cards.where('set_id').equals(setId).delete()
+      await db.progress.where('set_id').equals(setId).delete()
+      await db.sets.delete(setId)
+    })
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedSets.length === 0) return
+    const ok = await confirm(
+      `Delete ${selectedSets.length} set(s) and ALL their exercises, cards, and progress? This cannot be undone.`,
+      'Delete Sets'
+    )
+    if (!ok) return
+    for (const id of selectedSets) {
+      await deleteSetCompletely(id)
+    }
+    setSelectedSets([])
+    setIsSelectionMode(false)
+  }
+
+  const handleDeleteSingle = async (set: Set) => {
+    const ok = await confirm(
+      `Delete "${set.title}" and all its exercises, cards, and progress? This cannot be undone.`,
+      'Delete Set'
+    )
+    if (!ok) return
+    await deleteSetCompletely(set.id)
+    setEditingSet(null)
   }
 
   const openReviewModal = () => {
@@ -172,7 +205,7 @@ export function HomePage() {
               variant={isSelectionMode ? 'danger' : 'secondary'} 
               onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedSets([]); }}
             >
-              {isSelectionMode ? 'Cancel' : 'Move set(s)'}
+              {isSelectionMode ? 'Done' : 'Edit sets'}
             </Button>
             <Button variant="purple" onClick={openReviewModal}>
               🎴 Review {currentFolderName}
@@ -248,20 +281,43 @@ export function HomePage() {
         <div style={{ 
           position: 'fixed', bottom: 0, left: 0, right: 0, 
           background: '#1e293b', borderTop: '1px solid #334155', 
-          padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem',
-          zIndex: 900, boxShadow: '0 -4px 20px rgba(0,0,0,0.4)', flexWrap: 'wrap'
+          padding: '1rem', 
+          zIndex: 900, boxShadow: '0 -4px 20px rgba(0,0,0,0.4)'
         }}>
-          <span style={{ fontWeight: 'bold', color: '#38bdf8' }}>{selectedSets.length} selected</span>
-          <select 
-            onChange={(e) => handleBulkMove(e.target.value === 'null' ? null : e.target.value)} 
-            defaultValue=""
-            style={{ padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '8px', cursor: 'pointer', flex: 1, minWidth: '150px', maxWidth: '300px' }}
-          >
-            <option value="" disabled>Move to folder...</option>
-            <option value="null">Uncategorized</option>
-            {visibleFolders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
-          <Button variant="secondary" onClick={() => setSelectedSets([])}>Clear</Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 'bold', color: '#38bdf8' }}>{selectedSets.length} selected</span>
+            <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Move to:</span>
+            <div style={{ flex: 1 }} />
+            <Button variant="secondary" size="sm" onClick={() => setSelectedSets([])}>Clear</Button>
+            <Button variant="danger" size="sm" onClick={handleBulkDelete}>Delete Selected</Button>
+          </div>
+          <div style={{ 
+            display: 'flex', 
+            gap: '0.5rem', 
+            overflowX: 'auto', 
+            paddingBottom: '0.25rem',
+            maxWidth: '900px',
+            margin: '0 auto'
+          }}>
+            <button 
+              onClick={() => handleBulkMove(null)} 
+              className="folder-btn" 
+              style={{ padding: '0.5rem 0.9rem', borderRadius: '16px', width: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              Uncategorized
+            </button>
+            {visibleFolders.map(f => (
+              <button 
+                key={f.id} 
+                onClick={() => handleBulkMove(f.id)}
+                className="folder-btn"
+                style={{ padding: '0.5rem 0.9rem', borderRadius: '16px', width: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
+                <span className="folder-dot" style={{ background: getFolderColor(f.id) }}></span>
+                {f.name}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -301,6 +357,9 @@ export function HomePage() {
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
               <Button variant="secondary" fullWidth onClick={() => setEditingSet(null)}>Cancel</Button>
               <Button variant="primary" fullWidth onClick={saveEdit}>Save Changes</Button>
+            </div>
+            <div style={{ marginTop: '0.75rem' }}>
+              <Button variant="danger" fullWidth onClick={() => handleDeleteSingle(editingSet!)}>Delete This Set</Button>
             </div>
           </div>
         </div>

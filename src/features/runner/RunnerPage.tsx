@@ -7,6 +7,8 @@ import remarkGfm from 'remark-gfm'
 import type { Exercise } from '../../types'
 import { ReviewModal } from '../../shared/ReviewModal'
 import { useEscapeKey } from '../../shared/useEscapeKey'
+import { useModal } from '../../shared/ModalContext'
+import { Button, Input } from '../../shared/ui'
 
 export function RunnerPage() {
   const { setId } = useParams()
@@ -25,6 +27,7 @@ export function RunnerPage() {
   const [selectedExs, setSelectedExs] = useState<string[]>([])
 
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const { confirm } = useModal()
 
   if (set === undefined || exercises === undefined || !allSets) return <p>Loading...</p>
   if (!set) return <p>Set not found. <Link to="/" style={{color: '#38bdf8'}}>Go back</Link></p>
@@ -47,6 +50,43 @@ export function RunnerPage() {
     setIsMoveMode(false)
   }
 
+  const deleteExerciseAndProgress = async (exId: string) => {
+    await db.transaction('rw', [db.exercises, db.progress], async () => {
+      // Delete progress for this exercise's items
+      const ex = await db.exercises.get(exId)
+      if (ex) {
+        for (const item of ex.items) {
+          await db.progress.where('item_id').equals(item.id).delete()
+        }
+      }
+      await db.exercises.delete(exId)
+    })
+  }
+
+  const handleBulkDeleteExs = async () => {
+    if (selectedExs.length === 0) return
+    const ok = await confirm(
+      `Delete ${selectedExs.length} exercise(s) and all related progress? This cannot be undone.`,
+      'Delete Exercises'
+    )
+    if (!ok) return
+    for (const id of selectedExs) {
+      await deleteExerciseAndProgress(id)
+    }
+    setSelectedExs([])
+    setIsMoveMode(false)
+  }
+
+  const handleDeleteSingleEx = async (ex: Exercise) => {
+    const ok = await confirm(
+      `Delete exercise "${ex.title}"? This cannot be undone.`,
+      'Delete Exercise'
+    )
+    if (!ok) return
+    await deleteExerciseAndProgress(ex.id)
+    setEditingEx(null)
+  }
+
   const handleStartReview = (direction: string) => {
     navigate(`/review?setId=${setId}&direction=${direction}`)
   }
@@ -65,12 +105,9 @@ export function RunnerPage() {
           </p>
         </div>
         
-        <button 
-          onClick={() => setIsReviewModalOpen(true)}
-          style={{ padding: '0.8rem 1.5rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', width: '100%', maxWidth: '250px' }}
-        >
+        <Button variant="purple" onClick={() => setIsReviewModalOpen(true)}>
           Review Flashcards
-        </button>
+        </Button>
       </div>
 
       <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #334155', marginBottom: '1.5rem' }}>
@@ -89,12 +126,9 @@ export function RunnerPage() {
       {activeTab === 'exercises' && (
         <>
           <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-            <button 
-              onClick={() => { setIsMoveMode(!isMoveMode); setSelectedExs([]); }}
-              style={{ padding: '0.4rem 1rem', background: isMoveMode ? '#ef4444' : '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
-            >
-              {isMoveMode ? 'Cancel Move' : 'Move exercises'}
-            </button>
+            <Button size="sm" variant={isMoveMode ? 'danger' : 'secondary'} onClick={() => { setIsMoveMode(!isMoveMode); setSelectedExs([]); }}>
+              {isMoveMode ? 'Done' : 'Edit exercises'}
+            </Button>
           </div>
           <div style={{ display: 'grid', gap: '1rem' }}>
             {exercises.length === 0 && <p>No exercises in this set.</p>}
@@ -120,8 +154,8 @@ export function RunnerPage() {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
-                    <button onClick={() => { setEditingEx(ex); setExTags((ex.tags || []).join(', ')); }} style={{ padding: '0.6rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }} title="Edit Tags">✏️</button>
-                    <button onClick={() => navigate(`/runner/${setId}/practice/${ex.id}`)} style={{ padding: '0.8rem 1.5rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', flex: 1 }}>Start Practice</button>
+                    <Button size="sm" variant="secondary" onClick={() => { setEditingEx(ex); setExTags((ex.tags || []).join(', ')); }} title="Edit Tags">✏️</Button>
+                    <Button variant="primary" onClick={() => navigate(`/runner/${setId}/practice/${ex.id}`)}>Start Practice</Button>
                   </div>
                 </div>
               )
@@ -143,7 +177,8 @@ export function RunnerPage() {
               <option key={s.id} value={s.id}>{s.title}</option>
             ))}
           </select>
-          <button onClick={() => setSelectedExs([])} style={{ padding: '0.6rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Clear</button>
+          <Button variant="secondary" size="sm" onClick={() => setSelectedExs([])}>Clear</Button>
+          <Button variant="danger" size="sm" onClick={handleBulkDeleteExs}>Delete Selected</Button>
         </div>
       )}
 
@@ -151,13 +186,15 @@ export function RunnerPage() {
         <div onClick={() => setEditingEx(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%' }}>
             <h2 style={{ marginTop: 0 }}>Edit Tags: {editingEx.title}</h2>
-            <label style={{ display: 'block', marginBottom: '1.5rem' }}>
-              Tags (comma separated)
-              <input type="text" value={exTags} onChange={e => setExTags(e.target.value)} placeholder="e.g. hard, listening, A2" style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', marginTop: '0.5rem' }} />
-            </label>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <Input label="Tags (comma separated)" value={exTags} onChange={setExTags} placeholder="e.g. hard, listening, A2" />
+            </div>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => setEditingEx(null)} style={{ flex: 1, padding: '0.8rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
-              <button onClick={saveExTags} style={{ flex: 1, padding: '0.8rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save Tags</button>
+              <Button variant="secondary" fullWidth onClick={() => setEditingEx(null)}>Cancel</Button>
+              <Button variant="primary" fullWidth onClick={saveExTags}>Save Tags</Button>
+            </div>
+            <div style={{ marginTop: '0.75rem' }}>
+              <Button variant="danger" fullWidth onClick={() => handleDeleteSingleEx(editingEx!)}>Delete This Exercise</Button>
             </div>
           </div>
         </div>
