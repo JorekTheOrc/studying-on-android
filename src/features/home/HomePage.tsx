@@ -6,7 +6,7 @@ import type { Set } from '../../types'
 import { generateUUID, getFolderColor } from '../../utils'
 import { ReviewModal } from '../../shared/ReviewModal'
 import { useModal } from '../../shared/ModalContext'
-import { useEscapeKey } from '../../shared/useEscapeKey'
+import { Button, Input, Card } from '../../shared/ui'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -23,7 +23,6 @@ export function HomePage() {
   const [isEditingFolders, setIsEditingFolders] = useState(false)
 
   const [editingSet, setEditingSet] = useState<Set | null>(null)
-  useEscapeKey(!!editingSet, () => setEditingSet(null))
   const [editFolder, setEditFolder] = useState('')
   const [editTags, setEditTags] = useState('')
 
@@ -106,42 +105,51 @@ export function HomePage() {
     selectedFolder === 'null' ? 'Uncategorized' :
     folders.find(f => f.id === selectedFolder)?.name || ''
 
+  const visibleFolders = folders.filter(f => f.parent_id === null)
+
   return (
     <div className="home-layout">
       
-      {/* Folders Container */}
+      {/* Folders Panel */}
       <div className="folders-panel">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }} className="folder-header-actions">
-          <h3 style={{ margin: 0, color: '#e2e8f0' }}>Folders</h3>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={() => setIsEditingFolders(!isEditingFolders)} style={{ background: isEditingFolders ? '#ef4444' : '#334155', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', padding: '0.2rem 0.4rem', fontSize: '0.8rem' }} title="Rename folders">
+        <div className="folder-header-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, color: '#e2e8f0', fontSize: '1rem' }}>Folders</h3>
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <Button size="sm" variant={isEditingFolders ? 'danger' : 'secondary'} onClick={() => setIsEditingFolders(!isEditingFolders)} title="Rename folders">
               {isEditingFolders ? 'Done' : '✏️'}
-            </button>
-            <button onClick={createFolder} style={{ background: '#0ea5e9', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', padding: '0.2rem 0.5rem', fontWeight: 'bold' }}>+</button>
+            </Button>
+            <Button size="sm" variant="primary" onClick={createFolder}>+</Button>
           </div>
         </div>
         
         <div className="folders-list">
-          <button onClick={() => !isEditingFolders && setSelectedFolder('all')} style={{ textAlign: 'left', background: selectedFolder === 'all' ? '#334155' : 'transparent', color: selectedFolder === 'all' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: isEditingFolders ? 'default' : 'pointer', fontWeight: 'bold' }}>All Sets</button>
-          <button onClick={() => !isEditingFolders && setSelectedFolder('null')} style={{ textAlign: 'left', background: selectedFolder === 'null' ? '#334155' : 'transparent', color: selectedFolder === 'null' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '0.6rem', borderRadius: '4px', cursor: isEditingFolders ? 'default' : 'pointer' }}>Uncategorized</button>
+          <button
+            onClick={() => !isEditingFolders && setSelectedFolder('all')}
+            className={`folder-btn ${selectedFolder === 'all' ? 'active' : ''}`}
+            style={{ cursor: isEditingFolders ? 'default' : 'pointer' }}
+          >
+            All Sets
+          </button>
+          <button
+            onClick={() => !isEditingFolders && setSelectedFolder('null')}
+            className={`folder-btn ${selectedFolder === 'null' ? 'active' : ''}`}
+            style={{ cursor: isEditingFolders ? 'default' : 'pointer' }}
+          >
+            Uncategorized
+          </button>
           
-          {folders.filter(f => f.parent_id === null).map(f => {
+          {visibleFolders.map(f => {
             const color = getFolderColor(f.id)
+            const isActive = selectedFolder === f.id
             return (
               <button 
                 key={f.id} 
                 onClick={() => handleFolderClick(f.id, f.name)} 
-                style={{ 
-                  display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left', 
-                  background: selectedFolder === f.id ? '#334155' : (isEditingFolders ? '#2a3547' : 'transparent'), 
-                  color: selectedFolder === f.id ? '#fff' : '#94a3b8', 
-                  border: isEditingFolders ? '1px dashed #f59e0b' : '1px solid transparent', 
-                  padding: '0.6rem', borderRadius: '4px', cursor: isEditingFolders ? 'text' : 'pointer', transition: '0.2s' 
-                }}
+                className={`folder-btn ${isActive ? 'active' : ''} ${isEditingFolders ? 'editing' : ''}`}
               >
-                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: color, flexShrink: 0 }}></div>
-                {isEditingFolders && <span style={{ fontSize: '0.8rem' }}>✏️</span>}
-                {f.name}
+                <span className="folder-dot" style={{ background: color }}></span>
+                {isEditingFolders && <span style={{ fontSize: '0.75rem' }}>✏️</span>}
+                <span className="folder-name">{f.name}</span>
               </button>
             )
           })}
@@ -151,27 +159,40 @@ export function HomePage() {
       {/* Main Content */}
       <div className="home-content">
         <div className="home-header">
-          <h1 style={{ margin: 0 }}>My Sets</h1>
+          <h1 style={{ margin: 0, fontSize: '1.75rem' }}>My Sets</h1>
           
           <div className="home-actions">
-            <input 
-              type="text" placeholder="Search sets or tags..." value={search} onChange={e => setSearch(e.target.value)}
-              className="search-input"
-              style={{ padding: '0.6rem 1rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', minWidth: '200px' }}
+            <Input
+              value={search}
+              onChange={setSearch}
+              placeholder="Search sets or tags..."
+              style={{ minWidth: '200px' }}
             />
-            <button onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedSets([]); }} style={{ padding: '0.6rem 1rem', background: isSelectionMode ? '#ef4444' : '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Button 
+              variant={isSelectionMode ? 'danger' : 'secondary'} 
+              onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedSets([]); }}
+            >
               {isSelectionMode ? 'Cancel' : 'Move set(s)'}
-            </button>
-            <button onClick={openReviewModal} style={{ padding: '0.6rem 1rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            </Button>
+            <Button variant="purple" onClick={openReviewModal}>
               🎴 Review {currentFolderName}
-            </button>
+            </Button>
           </div>
         </div>
 
         {filteredSets.length === 0 ? (
-          <div style={{ width: '100%', boxSizing: 'border-box', padding: '3rem 1rem', border: '1px dashed #475569', borderRadius: '8px', textAlign: 'center', color: '#94a3b8' }}>
-            <h2 style={{ marginTop: 0, color: '#e2e8f0' }}>No sets found</h2>
-            <p>Try changing the folder or search query.</p>
+          <div style={{ 
+            padding: '3rem 1rem', 
+            border: '1px dashed #475569', 
+            borderRadius: '12px', 
+            textAlign: 'center', 
+            color: '#94a3b8',
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📭</div>
+            <div style={{ color: '#e2e8f0', fontWeight: 'bold', marginBottom: '0.5rem' }}>No sets found</div>
+            <div style={{ fontSize: '0.9rem' }}>Try a different folder or create a new set in Studio.</div>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '1rem' }}>
@@ -179,65 +200,107 @@ export function HomePage() {
               const folderColor = getFolderColor(set.folder_id)
               const isSelected = selectedSets.includes(set.id)
               return (
-                <div key={set.id} onClick={() => isSelectionMode ? toggleSelection(set.id) : navigate(`/runner/${set.id}`)} style={{ padding: '1.5rem', background: '#1e293b', border: '1px solid ' + (isSelected ? '#0ea5e9' : '#334155'), borderLeft: `6px solid ${folderColor}`, borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem', transition: '0.2s', cursor: 'pointer' }}>
-                  {isSelectionMode && (
-                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelection(set.id)} onClick={e => e.stopPropagation()} style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9', flexShrink: 0 }} />
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>{set.title}</h3>
-                    <div style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Topic: {set.topic || 'N/A'} | Level: {set.level || 'N/A'}</div>
-                    {set.tags.length > 0 && (
-                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        {set.tags.map(t => <span key={t} style={{ fontSize: '0.75rem', background: '#334155', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#cbd5e1' }}>#{t}</span>)}
-                      </div>
+                <Card
+                  key={set.id}
+                  onClick={() => isSelectionMode ? toggleSelection(set.id) : navigate(`/runner/${set.id}`)}
+                  accent={folderColor}
+                  highlight={isSelected}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {isSelectionMode && (
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected} 
+                        onChange={() => toggleSelection(set.id)} 
+                        onClick={e => e.stopPropagation()} 
+                        style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#0ea5e9', flexShrink: 0 }} 
+                      />
                     )}
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ margin: '0 0 0.4rem 0', color: '#38bdf8', fontSize: '1.15rem' }}>{set.title}</h3>
+                      <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                        {set.topic || 'General'} · {set.level || 'N/A'}
+                      </div>
+                      {set.tags.length > 0 && (
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          {set.tags.map(t => (
+                            <span key={t} style={{ fontSize: '0.72rem', background: '#0f172a', padding: '0.2rem 0.55rem', borderRadius: '12px', color: '#cbd5e1', border: '1px solid #334155' }}>
+                              #{t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }} onClick={e => e.stopPropagation()}>
+                      <Button size="sm" variant="secondary" onClick={() => openEditModal(set)}>Edit</Button>
+                      <Button size="sm" variant="primary" onClick={() => navigate(`/runner/${set.id}`)}>Open</Button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }} onClick={e => e.stopPropagation()}>
-                    <button onClick={() => openEditModal(set)} style={{ padding: '0.5rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
-                    <button onClick={() => navigate(`/runner/${set.id}`)} style={{ padding: '0.5rem 1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Open</button>
-                  </div>
-                </div>
+                </Card>
               )
             })}
           </div>
         )}
       </div>
 
+      {/* Bulk Move Bar */}
       {selectedSets.length > 0 && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1e293b', borderTop: '1px solid #334155', padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', zIndex: 900, boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.1)', flexWrap: 'wrap' }}>
+        <div style={{ 
+          position: 'fixed', bottom: 0, left: 0, right: 0, 
+          background: '#1e293b', borderTop: '1px solid #334155', 
+          padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem',
+          zIndex: 900, boxShadow: '0 -4px 20px rgba(0,0,0,0.4)', flexWrap: 'wrap'
+        }}>
           <span style={{ fontWeight: 'bold', color: '#38bdf8' }}>{selectedSets.length} selected</span>
-          <select onChange={(e) => handleBulkMove(e.target.value === 'null' ? null : e.target.value)} defaultValue="" style={{ padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', cursor: 'pointer', flex: 1, minWidth: '150px' }}>
+          <select 
+            onChange={(e) => handleBulkMove(e.target.value === 'null' ? null : e.target.value)} 
+            defaultValue=""
+            style={{ padding: '0.6rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '8px', cursor: 'pointer', flex: 1, minWidth: '150px', maxWidth: '300px' }}
+          >
             <option value="" disabled>Move to folder...</option>
             <option value="null">Uncategorized</option>
-            {folders.filter(f => f.parent_id === null).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            {visibleFolders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
-          <button onClick={() => setSelectedSets([])} style={{ padding: '0.6rem 1rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Clear</button>
+          <Button variant="secondary" onClick={() => setSelectedSets([])}>Clear</Button>
         </div>
       )}
 
+      {/* Edit Set Modal */}
       {editingSet && (
-        <div onClick={() => setEditingSet(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#1e293b', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ marginTop: 0 }}>Edit Set: {editingSet.title}</h2>
+        <div onClick={() => setEditingSet(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1e293b', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ marginTop: 0 }}>Edit Set</h2>
             <div style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <span style={{ color: '#94a3b8' }}>Select Folder</span>
-                <button onClick={createFolder} style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>+ New Folder</button>
+                <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Folder</span>
+                <Button size="sm" variant="ghost" onClick={createFolder}>+ New Folder</Button>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <button onClick={() => setEditFolder('null')} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === 'null' ? '#38bdf8' : '#475569'), background: editFolder === 'null' ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer' }}>Uncategorized</button>
-                {folders.filter(f => f.parent_id === null).map(f => (
-                  <button key={f.id} onClick={() => setEditFolder(f.id)} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid ' + (editFolder === f.id ? '#38bdf8' : '#475569'), background: editFolder === f.id ? '#0ea5e9' : '#0f172a', color: '#fff', cursor: 'pointer' }}>{f.icon} {f.name}</button>
+                <button onClick={() => setEditFolder('null')} className={`folder-btn ${editFolder === 'null' ? 'active' : ''}`} style={{ padding: '0.5rem 0.9rem', borderRadius: '16px' }}>
+                  Uncategorized
+                </button>
+                {visibleFolders.map(f => (
+                  <button 
+                    key={f.id} 
+                    onClick={() => setEditFolder(f.id)} 
+                    className={`folder-btn ${editFolder === f.id ? 'active' : ''}`}
+                    style={{ padding: '0.5rem 0.9rem', borderRadius: '16px' }}
+                  >
+                    <span className="folder-dot" style={{ background: getFolderColor(f.id) }}></span>
+                    {f.name}
+                  </button>
                 ))}
               </div>
             </div>
-            <label style={{ display: 'block', marginBottom: '1.5rem' }}>
-              Tags (comma separated)
-              <input type="text" value={editTags} onChange={e => setEditTags(e.target.value)} placeholder="e.g. grammar, A2, listening" style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px', marginTop: '0.5rem' }} />
-            </label>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => setEditingSet(null)} style={{ flex: 1, padding: '0.8rem', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
-              <button onClick={saveEdit} style={{ flex: 1, padding: '0.8rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
+            <Input 
+              label="Tags (comma separated)" 
+              value={editTags} 
+              onChange={setEditTags} 
+              placeholder="grammar, A2, listening" 
+            />
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+              <Button variant="secondary" fullWidth onClick={() => setEditingSet(null)}>Cancel</Button>
+              <Button variant="primary" fullWidth onClick={saveEdit}>Save Changes</Button>
             </div>
           </div>
         </div>

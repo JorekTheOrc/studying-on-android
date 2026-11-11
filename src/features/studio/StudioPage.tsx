@@ -6,6 +6,7 @@ import { db } from '../../db'
 import { useModal } from '../../shared/ModalContext'
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { BuilderParams, ExerciseType } from '../../types'
+import { Button } from '../../shared/ui'
 
 const EXERCISE_TYPES: { id: ExerciseType; label: string; desc: string }[] = [
   { id: 'multiple_choice', label: 'Multiple Choice', desc: 'Choose the correct option (A, B, C).' },
@@ -162,18 +163,19 @@ export function StudioPage() {
 
   return (
     <div style={{ maxWidth: '800px' }}>
-      <h1>Studio</h1>
+      <h1 style={{ marginBottom: '0.3rem' }}>Studio</h1>
+      <p style={{ color: '#94a3b8', marginTop: 0, marginBottom: '2rem' }}>Generate prompts for AI or import ready JSON.</p>
 
       <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #334155', marginBottom: '1.5rem' }}>
         <button
           onClick={() => setActiveTab('generate')}
-          style={{ padding: '0.8rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'generate' ? '2px solid #38bdf8' : '2px solid transparent', color: activeTab === 'generate' ? '#38bdf8' : '#94a3b8', fontSize: '1.1rem', cursor: 'pointer', fontWeight: 'bold' }}
+          style={{ padding: '0.8rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'generate' ? '2px solid #38bdf8' : '2px solid transparent', color: activeTab === 'generate' ? '#38bdf8' : '#94a3b8', fontSize: '1.05rem', cursor: 'pointer', fontWeight: 'bold' }}
         >
           1. Generate Prompt
         </button>
         <button
           onClick={() => setActiveTab('import')}
-          style={{ padding: '0.8rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'import' ? '2px solid #38bdf8' : '2px solid transparent', color: activeTab === 'import' ? '#38bdf8' : '#94a3b8', fontSize: '1.1rem', cursor: 'pointer', fontWeight: 'bold' }}
+          style={{ padding: '0.8rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'import' ? '2px solid #38bdf8' : '2px solid transparent', color: activeTab === 'import' ? '#38bdf8' : '#94a3b8', fontSize: '1.05rem', cursor: 'pointer', fontWeight: 'bold' }}
         >
           2. Import JSON
         </button>
@@ -223,7 +225,7 @@ export function StudioPage() {
             </div>
 
             <label>Word List (optional, comma-separated)<br/><textarea placeholder="e.g. apple, banana" value={params.wordList} onChange={e => setParams({...params, wordList: e.target.value})} style={{ ...inputStyle, height: '80px' }} /></label>
-            <button onClick={handleGenerate} style={{ padding: '1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '1.1rem', cursor: 'pointer', fontWeight: 'bold' }}>Generate Prompt</button>
+            <Button variant="primary" size="lg" fullWidth onClick={handleGenerate}>Generate Prompt</Button>
           </div>
 
           {generatedPrompt && (
@@ -231,17 +233,17 @@ export function StudioPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <h2 style={{ margin: 0 }}>Generated Prompt</h2>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button onClick={handleMockGenerate} style={{ padding: '0.5rem 1rem', background: '#eab308', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  <Button size="sm" variant="warning" onClick={handleMockGenerate}>
                     🧪 Mock (Test UI)
-                  </button>
+                  </Button>
                   {aiProvider !== 'none' && (
-                    <button onClick={handleGenerateWithAI} disabled={isGenerating} style={{ padding: '0.5rem 1rem', background: isGenerating ? '#334155' : '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: isGenerating ? 'wait' : 'pointer', fontWeight: 'bold' }}>
+                    <Button size="sm" variant="purple" onClick={handleGenerateWithAI} disabled={isGenerating}>
                       {isGenerating ? 'Generating...' : '✨ Generate with AI'}
-                    </button>
+                    </Button>
                   )}
-                  <button onClick={handleCopy} style={{ padding: '0.5rem 1rem', background: copied ? '#22c55e' : '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                  <Button size="sm" variant={copied ? 'success' : 'secondary'} onClick={handleCopy}>
                     {copied ? '✓ Copied!' : 'Copy to Clipboard'}
-                  </button>
+                  </Button>
                 </div>
               </div>
               <textarea readOnly value={generatedPrompt} style={{ width: '100%', height: '300px', padding: '1rem', background: '#0f172a', border: '1px solid #475569', color: '#94a3b8', borderRadius: '4px', fontFamily: 'monospace' }} />
@@ -262,13 +264,9 @@ export function StudioPage() {
           />
 
           <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
-            <button
-              onClick={handleValidate}
-              disabled={!jsonText.trim()}
-              style={{ padding: '0.8rem 1.5rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: jsonText.trim() ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}
-            >
+            <Button variant="primary" onClick={handleValidate} disabled={!jsonText.trim()}>
               Validate JSON
-            </button>
+            </Button>
           </div>
 
           {saved && (
@@ -294,13 +292,11 @@ export function StudioPage() {
               <h3 style={{ marginTop: 0, color: '#86efac' }}>Validation Passed!</h3>
               <p>Title: <strong>{result.data.set.title}</strong></p>
               <p>Exercises: {result.data.exercises.length} | Cards: {result.data.cards.length}</p>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                style={{ marginTop: '0.5rem', padding: '0.8rem 1.5rem', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: isSaving ? 'wait' : 'pointer', fontWeight: 'bold' }}
-              >
-                {isSaving ? 'Saving...' : 'Save to Database'}
-              </button>
+              <div style={{ marginTop: '0.8rem' }}>
+                <Button variant="success" onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save to Database'}
+                </Button>
+              </div>
             </div>
           )}
         </div>

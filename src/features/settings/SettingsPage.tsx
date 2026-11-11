@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { db } from '../../db'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useModal } from '../../shared/ModalContext'
+import { Button, Input } from '../../shared/ui'
 
 export function SettingsPage() {
   const { alert, confirm } = useModal()
@@ -25,45 +26,8 @@ export function SettingsPage() {
     await db.settings.put({ key: 'ai_provider', value: val })
   }
 
-  const updateAiKey = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    await db.settings.put({ key: 'ai_api_key', value: e.target.value })
-  }
-
-  const handleExportAnki = async () => {
-    try {
-      const cards = await db.cards.toArray()
-      if (cards.length === 0) {
-        await alert("No flashcards found to export.")
-        return
-      }
-
-      // CSV escape helper
-      const escapeCsv = (str: string) => {
-        if (!str) return '""'
-        return `"${str.replace(/"/g, '""')}"`
-      }
-
-      // Header + rows
-      const rows = cards.map(c => {
-        const front = escapeCsv(c.front)
-        const back = escapeCsv(c.back || '')
-        const tags = escapeCsv(c.tags.join(' '))
-        return `${front},${back},${tags}`
-      })
-
-      const csvContent = rows.join('\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `anki_export_${new Date().toISOString().split('T')[0]}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (e: any) {
-      await alert("Anki Export failed: " + e.message)
-    }
+  const updateAiKey = async (val: string) => {
+    await db.settings.put({ key: 'ai_api_key', value: val })
   }
 
   const handleExport = async () => {
@@ -141,19 +105,57 @@ export function SettingsPage() {
     reader.readAsText(file)
   }
 
+  const handleExportAnki = async () => {
+    try {
+      const cards = await db.cards.toArray()
+      if (cards.length === 0) {
+        await alert("No flashcards found to export.")
+        return
+      }
+
+      const escapeCsv = (str: string) => {
+        if (!str) return '""'
+        return `"${str.replace(/"/g, '""')}"`
+      }
+
+      const rows = cards.map(c => {
+        const front = escapeCsv(c.front)
+        const back = escapeCsv(c.back || '')
+        const tags = escapeCsv(c.tags.join(' '))
+        return `${front},${back},${tags}`
+      })
+
+      const csvContent = rows.join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `anki_export_${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      await alert("Anki Export failed: " + e.message)
+    }
+  }
+
+  const sectionStyle = { padding: '1.5rem', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', marginBottom: '1.5rem' }
+
   return (
-    <div style={{ maxWidth: '600px' }}>
-      <h1>Settings</h1>
+    <div style={{ maxWidth: '700px' }}>
+      <h1 style={{ marginBottom: '0.3rem' }}>Settings</h1>
+      <p style={{ color: '#94a3b8', marginTop: 0, marginBottom: '2rem' }}>Configure your app and manage your data.</p>
       
-      <div style={{ marginTop: '2rem', padding: '1.5rem', background: '#1e293b', borderRadius: '8px', border: '1px solid #334155' }}>
-        <h2 style={{ marginTop: 0 }}>Preferences</h2>
+      <div style={sectionStyle}>
+        <h2 style={{ marginTop: 0, fontSize: '1.15rem' }}>Preferences</h2>
         
         <label style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', padding: '0.5rem 0' }}>
           <input 
             type="checkbox" 
             checked={ttsEnabled} 
             onChange={toggleTts} 
-            style={{ width: '20px', height: '20px', accentColor: '#0ea5e9' }} 
+            style={{ width: '20px', height: '20px', accentColor: '#0ea5e9', cursor: 'pointer' }} 
           />
           <div>
             <div style={{ fontWeight: 'bold', color: '#e2e8f0' }}>Enable Text-to-Speech (🔊)</div>
@@ -162,18 +164,18 @@ export function SettingsPage() {
         </label>
       </div>
 
-      <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: '#1e293b', borderRadius: '8px', border: '1px solid #334155' }}>
-        <h2 style={{ marginTop: 0 }}>AI Integration (Optional)</h2>
+      <div style={sectionStyle}>
+        <h2 style={{ marginTop: 0, fontSize: '1.15rem' }}>AI Integration (Optional)</h2>
         <p style={{ color: '#94a3b8', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
           Add an API key to generate JSON directly from Studio without copy-pasting.
         </p>
 
         <label style={{ display: 'block', marginBottom: '1rem' }}>
-          <div style={{ fontSize: '0.9rem', color: '#cbd5e1', marginBottom: '0.3rem' }}>Provider</div>
+          <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '0.3rem' }}>Provider</div>
           <select 
             value={aiProvider} 
             onChange={e => updateAiProvider(e.target.value)} 
-            style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px' }}
+            style={{ width: '100%', padding: '0.7rem 0.9rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '8px', cursor: 'pointer' }}
           >
             <option value="none">None (Manual Copy-Paste)</option>
             <option value="gemini">Google Gemini (Free tier)</option>
@@ -183,49 +185,55 @@ export function SettingsPage() {
         </label>
 
         {aiProvider !== 'none' && (
-          <label style={{ display: 'block', marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.9rem', color: '#cbd5e1', marginBottom: '0.3rem' }}>API Key</div>
-            <input 
-              type="password" 
-              value={aiKey} 
-              onChange={updateAiKey} 
-              placeholder="Paste your API key here..." 
-              style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px' }} 
+          <div style={{ marginBottom: '1rem' }}>
+            <Input
+              label="API Key"
+              value={aiKey}
+              onChange={updateAiKey}
+              type="password"
+              placeholder="Paste your API key here..."
             />
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.3rem' }}>
-              Stored locally on your device. Never sent anywhere except the AI provider.
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.4rem' }}>
+              Stored locally on your device. Only sent to your chosen AI provider.
             </div>
-          </label>
+          </div>
         )}
       </div>
 
-      <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: '#1e293b', borderRadius: '8px', border: '1px solid #334155' }}>
-        <h2 style={{ marginTop: 0 }}>Data Management</h2>
-        <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+      <div style={sectionStyle}>
+        <h2 style={{ marginTop: 0, fontSize: '1.15rem' }}>Backup & Restore</h2>
+        <p style={{ color: '#94a3b8', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
           Your data is stored locally. Export a backup to avoid losing progress.
         </p>
 
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          <button onClick={handleExport} disabled={isExporting} style={{ flex: 1, minWidth: '200px', padding: '0.8rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: isExporting ? 'wait' : 'pointer', fontWeight: 'bold' }}>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <Button variant="primary" fullWidth onClick={handleExport} disabled={isExporting} style={{ minWidth: '200px' }}>
             {isExporting ? 'Exporting...' : 'Export Backup (.json)'}
-          </button>
+          </Button>
 
           <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
-            <input type="file" accept=".json" onChange={handleImport} disabled={isImporting} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-            <button disabled={isImporting} style={{ width: '100%', padding: '0.8rem', background: '#334155', color: '#fff', border: '1px solid #475569', borderRadius: '4px', cursor: isImporting ? 'wait' : 'pointer', fontWeight: 'bold' }}>
+            <input 
+              type="file" 
+              accept=".json" 
+              onChange={handleImport} 
+              disabled={isImporting} 
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', zIndex: 2 }} 
+            />
+            <Button variant="secondary" fullWidth disabled={isImporting}>
               {isImporting ? 'Importing...' : 'Import Backup'}
-            </button>
+            </Button>
           </div>
         </div>
-        
-        <div style={{ paddingTop: '1rem', borderTop: '1px solid #334155' }}>
-          <p style={{ color: '#94a3b8', marginBottom: '1rem', fontSize: '0.9rem' }}>
-            Export your flashcards to CSV to import them into the original Anki app.
-          </p>
-          <button onClick={handleExportAnki} style={{ width: '100%', padding: '0.8rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-            Export to Anki (.csv)
-          </button>
-        </div>
+      </div>
+
+      <div style={sectionStyle}>
+        <h2 style={{ marginTop: 0, fontSize: '1.15rem' }}>Export to Anki</h2>
+        <p style={{ color: '#94a3b8', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+          Export all your flashcards to a .csv file that you can import into Anki.
+        </p>
+        <Button variant="purple" fullWidth onClick={handleExportAnki}>
+          Export to Anki (.csv)
+        </Button>
       </div>
     </div>
   )
