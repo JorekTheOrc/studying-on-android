@@ -84,7 +84,14 @@ export function validateImportedSet(jsonString: string): ValidationResult {
 
       if (ex.type === 'multiple_choice') {
         if (!Array.isArray(item.options) || item.options.length < 3) errors.push(`${itemPrefix}: Needs at least 3 options`)
-        if (!item.options.find((o: any) => o.id === item.answer[0])) errors.push(`${itemPrefix}: Correct answer ID not found in options`)
+        // Every answer ID must exist in options
+        if (Array.isArray(item.answer)) {
+          for (const id of item.answer) {
+            if (!item.options.find((o: any) => o.id === id)) {
+              errors.push(`${itemPrefix}: Correct answer ID '${id}' not found in options`)
+            }
+          }
+        }
       }
 
       if (ex.type === 'ordering') {

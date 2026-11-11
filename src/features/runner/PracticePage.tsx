@@ -131,7 +131,10 @@ export function PracticePage() {
     const normalize = (s: any) => String(s).toLowerCase().trim()
     let answerToSave = userAnswer
 
-    if (exercise.type === 'multiple_choice' || exercise.type === 'true_false_ng' || exercise.type === 'true_false') {
+    if (exercise.type === 'multiple_choice') {
+      isCorrect = (item.answer as string[]).includes(userAnswer)
+    }
+    else if (exercise.type === 'true_false_ng' || exercise.type === 'true_false') {
       isCorrect = userAnswer === correctAnswer
     } 
     else if (['fill_blank', 'short_answer', 'sentence_completion'].includes(exercise.type)) {
@@ -186,8 +189,9 @@ export function PracticePage() {
 
   const renderCorrectAnswerText = () => {
     if (exercise.type === 'multiple_choice') {
-      const opt = item.options?.find(o => o.id === item.answer[0])
-      return opt ? opt.text : String(item.answer[0])
+      const correctIds = item.answer as string[]
+      const texts = correctIds.map(id => item.options?.find(o => o.id === id)?.text).filter(Boolean)
+      return texts.length > 0 ? texts.join(' / ') : String(item.answer[0])
     }
     if (exercise.type === 'true_false_ng' || exercise.type === 'true_false') {
       return item.answer[0] === 'T' ? 'True' : item.answer[0] === 'F' ? 'False' : 'Not Given'
