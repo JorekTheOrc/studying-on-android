@@ -5,6 +5,7 @@ import { db } from '../../db'
 import { generateUUID } from '../../utils'
 import { speak } from '../../utils/tts'
 import { useTtsEnabled } from '../../utils/useTtsEnabled'
+import { useEscapeKey } from '../../shared/useEscapeKey'
 import { InteractiveText } from '../../shared/InteractiveText'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -39,6 +40,8 @@ export function PracticePage() {
   const [showTheory, setShowTheory] = useState(false)
   const [showHint, setShowHint] = useState(false)
   const [showCardModal, setShowCardModal] = useState(false)
+  useEscapeKey(showCardModal, () => setShowCardModal(false))
+  useEscapeKey(showTheory, () => setShowTheory(false))
   const [selectedWords, setSelectedWords] = useState<string[]>([])
   const [isFinished, setIsFinished] = useState(false)
   const [attemptCount, setAttemptCount] = useState(0)

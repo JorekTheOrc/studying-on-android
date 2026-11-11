@@ -6,6 +6,7 @@ import type { Set } from '../../types'
 import { generateUUID, getFolderColor } from '../../utils'
 import { ReviewModal } from '../../shared/ReviewModal'
 import { useModal } from '../../shared/ModalContext'
+import { useEscapeKey } from '../../shared/useEscapeKey'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -22,6 +23,7 @@ export function HomePage() {
   const [isEditingFolders, setIsEditingFolders] = useState(false)
 
   const [editingSet, setEditingSet] = useState<Set | null>(null)
+  useEscapeKey(!!editingSet, () => setEditingSet(null))
   const [editFolder, setEditFolder] = useState('')
   const [editTags, setEditTags] = useState('')
 

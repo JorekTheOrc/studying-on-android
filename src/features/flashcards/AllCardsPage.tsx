@@ -6,6 +6,7 @@ import type { Card } from '../../types'
 import { ReviewModal } from '../../shared/ReviewModal'
 import { getFolderColor } from '../../utils'
 import { useModal } from '../../shared/ModalContext'
+import { useEscapeKey } from '../../shared/useEscapeKey'
 
 export function AllCardsPage() {
   const navigate = useNavigate()
@@ -20,6 +21,7 @@ export function AllCardsPage() {
   const folders = useLiveQuery(() => db.folders.toArray(), [])
   
   const [editingCard, setEditingCard] = useState<Card | null>(null)
+  useEscapeKey(!!editingCard, () => setEditingCard(null))
   const [editFront, setEditFront] = useState('')
   const [editBack, setEditBack] = useState('')
   const [editTags, setEditTags] = useState('')

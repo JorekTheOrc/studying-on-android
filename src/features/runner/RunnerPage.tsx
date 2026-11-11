@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Exercise } from '../../types'
 import { ReviewModal } from '../../shared/ReviewModal'
+import { useEscapeKey } from '../../shared/useEscapeKey'
 
 export function RunnerPage() {
   const { setId } = useParams()
@@ -17,6 +18,7 @@ export function RunnerPage() {
   const allSets = useLiveQuery(() => db.sets.toArray(), [])
 
   const [editingEx, setEditingEx] = useState<Exercise | null>(null)
+  useEscapeKey(!!editingEx, () => setEditingEx(null))
   const [exTags, setExTags] = useState('')
 
   const [isMoveMode, setIsMoveMode] = useState(false)
