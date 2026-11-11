@@ -5,7 +5,7 @@ export async function callAI(prompt: string, provider: string, apiKey: string): 
   const cleanKey = apiKey.trim()
 
   if (provider === 'gemini') {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${cleanKey}`
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`
     console.log("[AI] Requesting:", url.replace(cleanKey, "***"))
     const res = await fetch(url, {
       method: 'POST',
