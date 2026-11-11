@@ -89,7 +89,7 @@ Card:
 12. **Every exercise MUST have a "tags" array with 1-3 descriptive tags** (e.g., ["listening", "A2"]).
 
 === SELF-CHECK (do silently before output) ===
-- multiple_choice: every \`answer\` id exists in options.
+- multiple_choice: every \`answer\` id exists in options. Did I miss any valid alternative answers (e.g., Who/Whom)? If yes, add them to \`answer\`.
 - true_false: \`answer\` is "T","F".
 - true_false_ng: \`answer\` is "T","F","NG".
 - matching: equal length of left and right.
