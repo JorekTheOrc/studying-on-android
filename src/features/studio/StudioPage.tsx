@@ -1,12 +1,12 @@
 import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { generatePrompt } from '../../utils/prompt'
 import { validateImportedSet, type ValidationResult } from '../../utils/validator'
 import { callAI, extractJSON } from '../../utils/ai'
 import { db } from '../../db'
 import { useModal } from '../../shared/ModalContext'
-import { useLiveQuery } from 'dexie-react-hooks'
-import type { BuilderParams, ExerciseType } from '../../types'
-import { Button } from '../../shared/ui'
+import { Button, Input } from '../../shared/ui'
+import type { BuilderParams, ExerciseType, Template } from '../../types'
 
 const EXERCISE_TYPES: { id: ExerciseType; label: string; desc: string }[] = [
   { id: 'multiple_choice', label: 'Multiple Choice', desc: 'Choose the correct option (A, B, C).' },
@@ -20,53 +20,29 @@ const EXERCISE_TYPES: { id: ExerciseType; label: string; desc: string }[] = [
   { id: 'translation', label: 'Translation', desc: 'Translate the sentence into the target language.' }
 ]
 
-// Recommended exercise plan per level
-const LEVEL_PRESETS: Record<string, { type: ExerciseType; count: number; itemsPerExercise: number }[]> = {
-  A1: [
-    { type: 'multiple_choice', count: 1, itemsPerExercise: 5 },
-    { type: 'matching', count: 1, itemsPerExercise: 5 },
-  ],
-  A2: [
-    { type: 'multiple_choice', count: 1, itemsPerExercise: 5 },
-    { type: 'fill_blank', count: 1, itemsPerExercise: 5 },
-    { type: 'matching', count: 1, itemsPerExercise: 5 },
-  ],
-  B1: [
-    { type: 'multiple_choice', count: 1, itemsPerExercise: 5 },
-    { type: 'fill_blank', count: 1, itemsPerExercise: 5 },
-    { type: 'sentence_completion', count: 1, itemsPerExercise: 5 },
-    { type: 'true_false_ng', count: 1, itemsPerExercise: 5 },
-  ],
-  B2: [
-    { type: 'multiple_choice', count: 1, itemsPerExercise: 5 },
-    { type: 'fill_blank', count: 1, itemsPerExercise: 5 },
-    { type: 'translation', count: 1, itemsPerExercise: 5 },
-    { type: 'short_answer', count: 1, itemsPerExercise: 5 },
-  ],
-  C1: [
-    { type: 'fill_blank', count: 1, itemsPerExercise: 5 },
-    { type: 'translation', count: 1, itemsPerExercise: 5 },
-    { type: 'short_answer', count: 1, itemsPerExercise: 5 },
-  ],
-  C2: [
-    { type: 'translation', count: 1, itemsPerExercise: 5 },
-    { type: 'short_answer', count: 1, itemsPerExercise: 5 },
-  ],
-}
+const COUNT_OPTIONS = [0, 1, 2, 3, 4]
+const ITEMS_OPTIONS = [3, 5, 7, 10, 15]
 
-// Apply preset when level is chosen
-function applyLevelPreset(level: string): BuilderParams['plans'] {
-  const preset = LEVEL_PRESETS[level]
-  if (!preset) return []
-  return preset.map(p => ({ type: p.type, count: p.count, itemsPerExercise: p.itemsPerExercise }))
-}
+const chipStyle = (active: boolean): React.CSSProperties => ({
+  padding: '0.35rem 0.7rem',
+  background: active ? '#0ea5e9' : '#0f172a',
+  color: active ? '#fff' : '#94a3b8',
+  border: `1px solid ${active ? '#0ea5e9' : '#475569'}`,
+  borderRadius: '6px',
+  cursor: 'pointer',
+  fontSize: '0.8rem',
+  minWidth: '34px',
+  fontWeight: active ? 'bold' : 'normal',
+  transition: '0.15s',
+})
 
 export function StudioPage() {
-  const { alert } = useModal()
+  const { alert, prompt, confirm } = useModal()
   const [activeTab, setActiveTab] = useState<'generate' | 'import'>('generate')
   const [isGenerating, setIsGenerating] = useState(false)
 
-  // --- BUILDER STATE ---
+  const templates = useLiveQuery(() => db.templates.toArray(), [])
+
   const [params, setParams] = useState<BuilderParams>({
     targetLang: 'English', nativeLang: 'Russian', topic: '', level: 'B1',
     plans: [{ type: 'multiple_choice', count: 1, itemsPerExercise: 5 }],
@@ -75,12 +51,62 @@ export function StudioPage() {
   const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [copied, setCopied] = useState(false)
 
-  // Settings for AI
   const aiProviderSetting = useLiveQuery(() => db.settings.get('ai_provider'))
   const aiProvider = aiProviderSetting?.value || 'none'
   const aiKeySetting = useLiveQuery(() => db.settings.get('ai_api_key'))
   const aiKey = aiKeySetting?.value || ''
 
+  // --- TEMPLATES ---
+  const handleSaveTemplate = async () => {
+    const name = await prompt('Name for this template:', params.topic || 'Untitled', 'Save Template')
+    if (!name || !name.trim()) return
+    const cleanPlans = params.plans
+      .filter(p => typeof p.count === 'number' && p.count > 0)
+      .map(p => ({ type: p.type, count: p.count as number, itemsPerExercise: p.itemsPerExercise as number }))
+    await db.templates.add({
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      topic: params.topic,
+      targetLang: params.targetLang,
+      nativeLang: params.nativeLang,
+      level: params.level,
+      plans: cleanPlans,
+      includeTheory: params.includeTheory,
+      includeHints: params.includeHints,
+      includeTranslations: params.includeTranslations,
+      wordList: params.wordList,
+      createdAt: Date.now(),
+    })
+    await alert('Template saved!')
+  }
+
+  const handleLoadTemplate = (t: Template) => {
+    setParams({
+      targetLang: t.targetLang,
+      nativeLang: t.nativeLang,
+      topic: t.topic,
+      level: t.level,
+      plans: t.plans,
+      includeTheory: t.includeTheory,
+      includeHints: t.includeHints,
+      includeTranslations: t.includeTranslations,
+      wordList: t.wordList,
+    })
+  }
+
+  const handleRenameTemplate = async (t: Template) => {
+    const newName = await prompt('Rename template:', t.name, 'Rename')
+    if (!newName || !newName.trim() || newName === t.name) return
+    await db.templates.update(t.id, { name: newName.trim() })
+  }
+
+  const handleDeleteTemplate = async (t: Template) => {
+    const ok = await confirm(`Delete template "${t.name}"?`, 'Delete Template')
+    if (!ok) return
+    await db.templates.delete(t.id)
+  }
+
+  // --- BUILDER ---
   const handleGenerate = () => {
     setGeneratedPrompt(generatePrompt(params))
     setCopied(false)
@@ -95,27 +121,6 @@ export function StudioPage() {
     } catch (err) { console.error('Failed to copy', err) }
   }
 
-  const handleGenerateWithAI = async () => {
-    if (!generatedPrompt) return
-    setIsGenerating(true)
-    try {
-      const rawResponse = await callAI(generatedPrompt, aiProvider, aiKey)
-      const cleanJson = extractJSON(rawResponse)
-      
-      setJsonText(cleanJson)
-      setActiveTab('import')
-      
-      // Auto-validate
-      const res = validateImportedSet(cleanJson)
-      setResult(res)
-      setSaved(false)
-    } catch (e: any) {
-      await alert("AI Generation Failed: " + e.message)
-    } finally {
-      setIsGenerating(false)
-    }
-  }
-
   const handleMockGenerate = () => {
     const mockJson = JSON.stringify({
       schema_version: 1,
@@ -125,11 +130,12 @@ export function StudioPage() {
       target_lang: "English",
       native_lang: "Russian",
       level: "A2",
-      theory_md: "This is a mock theory generated locally.",
+      theory_md: "This is a mock theory.",
       exercises: [{
         id: "mock-ex1",
         type: "multiple_choice",
         title: "Mock Choice",
+        tags: ["test"],
         items: [{
           id: "mock-i1",
           prompt: "He ___ to school.",
@@ -143,7 +149,6 @@ export function StudioPage() {
         }]
       }]
     }, null, 2)
-    
     setJsonText(mockJson)
     setActiveTab('import')
     const res = validateImportedSet(mockJson)
@@ -151,25 +156,39 @@ export function StudioPage() {
     setSaved(false)
   }
 
-  const updatePlan = (type: ExerciseType, field: 'count' | 'itemsPerExercise', value: string) => {
+  const handleGenerateWithAI = async () => {
+    if (!generatedPrompt) return
+    setIsGenerating(true)
+    try {
+      const rawResponse = await callAI(generatedPrompt, aiProvider, aiKey)
+      const cleanJson = extractJSON(rawResponse)
+      setJsonText(cleanJson)
+      setActiveTab('import')
+      const res = validateImportedSet(cleanJson)
+      setResult(res)
+      setSaved(false)
+    } catch (e: any) {
+      await alert("AI Generation Failed: " + e.message)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const updatePlan = (type: ExerciseType, field: 'count' | 'itemsPerExercise', value: number) => {
     setParams(prev => {
       const existing = prev.plans.find(p => p.type === type) || { type, count: 0, itemsPerExercise: 5 }
-      const parsedValue = value === '' ? '' : parseInt(value)
       const newPlans = [...prev.plans]
       const index = newPlans.findIndex(p => p.type === type)
       if (index >= 0) {
-        newPlans[index] = { ...newPlans[index], [field]: parsedValue as any }
+        newPlans[index] = { ...newPlans[index], [field]: value }
       } else {
-        newPlans.push({ ...existing, [field]: parsedValue as any })
+        newPlans.push({ ...existing, [field]: value })
       }
       return { ...prev, plans: newPlans }
     })
   }
 
-  const inputStyle = { width: '100%', padding: '0.5rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '4px' }
-  const numInputStyle = { width: '60px', background: '#0f172a', border: '1px solid #475569', color: '#fff', padding: '0.2rem', borderRadius: '4px' }
-
-  // --- IMPORT STATE ---
+  // --- IMPORT ---
   const [jsonText, setJsonText] = useState('')
   const [result, setResult] = useState<ValidationResult | null>(null)
   const [saved, setSaved] = useState(false)
@@ -203,7 +222,7 @@ export function StudioPage() {
   }
 
   return (
-    <div style={{ maxWidth: '800px' }}>
+    <div style={{ maxWidth: '900px' }}>
       <h1 style={{ marginBottom: '0.3rem' }}>Studio</h1>
       <p style={{ color: '#94a3b8', marginTop: 0, marginBottom: '2rem' }}>Generate prompts for AI or import ready JSON.</p>
 
@@ -224,63 +243,99 @@ export function StudioPage() {
 
       {activeTab === 'generate' && (
         <div>
-          <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>Configure the exercises you want the AI to generate.</p>
+          {/* Templates row */}
+          <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#1e293b', borderRadius: '8px', border: '1px solid #334155' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', color: '#e2e8f0' }}>Templates</h3>
+              <Button size="sm" variant="primary" onClick={handleSaveTemplate}>+ Save current as template</Button>
+            </div>
+            {templates && templates.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {templates.map(t => (
+                  <div key={t.id} style={{ display: 'flex', alignItems: 'center', background: '#0f172a', border: '1px solid #475569', borderRadius: '16px', overflow: 'hidden' }}>
+                    <button
+                      onClick={() => handleLoadTemplate(t)}
+                      style={{ padding: '0.4rem 0.8rem', background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', fontSize: '0.85rem' }}
+                      title="Load template"
+                    >
+                      {t.name}
+                    </button>
+                    <button onClick={() => handleRenameTemplate(t)} style={{ padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderLeft: '1px solid #334155', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem' }} title="Rename">✏️</button>
+                    <button onClick={() => handleDeleteTemplate(t)} style={{ padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderLeft: '1px solid #334155', color: '#f87171', cursor: 'pointer', fontSize: '0.8rem' }} title="Delete">🗑️</button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                No templates yet. Fill the form below and click "Save current as template".
+              </div>
+            )}
+          </div>
 
           <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <label style={{ flex: 1 }}>Target Language<br/><input type="text" value={params.targetLang} onChange={e => setParams({...params, targetLang: e.target.value})} style={inputStyle} /></label>
-              <label style={{ flex: 1 }}>Native Language<br/><input type="text" value={params.nativeLang} onChange={e => setParams({...params, nativeLang: e.target.value})} style={inputStyle} /></label>
+              <div style={{ flex: 1 }}><Input label="Target Language" value={params.targetLang} onChange={v => setParams({...params, targetLang: v})} /></div>
+              <div style={{ flex: 1 }}><Input label="Native Language" value={params.nativeLang} onChange={v => setParams({...params, nativeLang: v})} /></div>
             </div>
-            <label>Topic<br/><input type="text" placeholder="e.g. Present Simple" value={params.topic} onChange={e => setParams({...params, topic: e.target.value})} style={inputStyle} /></label>
+            <Input label="Topic" value={params.topic} onChange={v => setParams({...params, topic: v})} placeholder="e.g. Present Simple" />
+
             <div>
-              <div style={{ fontSize: '0.9rem', color: '#cbd5e1', marginBottom: '0.5rem' }}>Level (click to apply preset plan)</div>
+              <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '0.5rem' }}>Level</div>
               <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => {
-                  const active = params.level === l
-                  return (
-                    <button
-                      key={l}
-                      onClick={() => setParams(prev => ({ ...prev, level: l, plans: applyLevelPreset(l) }))}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        background: active ? '#0ea5e9' : '#1e293b',
-                        color: active ? '#fff' : '#94a3b8',
-                        border: `1px solid ${active ? '#0ea5e9' : '#475569'}`,
-                        borderRadius: '16px',
-                        cursor: 'pointer',
-                        fontWeight: active ? 'bold' : 'normal',
-                        fontSize: '0.9rem',
-                        transition: '0.15s',
-                      }}
-                    >
-                      {l}
-                    </button>
-                  )
-                })}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.4rem' }}>
-                Clicking a level replaces the exercise plan below with a suggested one.
+                {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => (
+                  <button
+                    key={l}
+                    onClick={() => setParams(prev => ({ ...prev, level: l }))}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: params.level === l ? '#0ea5e9' : '#1e293b',
+                      color: params.level === l ? '#fff' : '#94a3b8',
+                      border: `1px solid ${params.level === l ? '#0ea5e9' : '#475569'}`,
+                      borderRadius: '16px',
+                      cursor: 'pointer',
+                      fontWeight: params.level === l ? 'bold' : 'normal',
+                      fontSize: '0.9rem',
+                    }}
+                  >
+                    {l}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div style={{ padding: '1.5rem', background: '#1e293b', borderRadius: '8px' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#38bdf8' }}>Exercise Types</h3>
-              <div style={{ display: 'grid', gap: '1.2rem' }}>
+            <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#38bdf8', fontSize: '1rem' }}>Exercise Types</h3>
+              <div style={{ display: 'grid', gap: '1rem' }}>
                 {EXERCISE_TYPES.map(({ id, label, desc }) => {
                   const plan = params.plans.find(p => p.type === id) || { count: 0, itemsPerExercise: 5 }
+                  const isActive = typeof plan.count === 'number' && plan.count > 0
                   return (
-                    <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
-                      <div style={{ flex: 1, paddingRight: '1rem' }}>
-                        <div style={{ fontWeight: 'bold', color: '#e2e8f0', marginBottom: '0.2rem' }}>{label}</div>
-                        <div style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.3 }}>{desc}</div>
+                    <div key={id} style={{ borderBottom: '1px solid #334155', paddingBottom: '0.9rem' }}>
+                      <div style={{ marginBottom: '0.5rem' }}>
+                        <div style={{ fontWeight: 'bold', color: isActive ? '#e2e8f0' : '#64748b', fontSize: '0.9rem' }}>{label}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{desc}</div>
                       </div>
-                      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                        <label style={{ display: 'flex', flexDirection: 'column', fontSize: '0.85rem', alignItems: 'center' }}>Count
-                          <input type="number" min="0" max="10" value={plan.count} onChange={e => updatePlan(id, 'count', e.target.value)} style={numInputStyle} />
-                        </label>
-                        <label style={{ display: 'flex', flexDirection: 'column', fontSize: '0.85rem', alignItems: 'center' }}>Items
-                          <input type="number" min="1" max="20" value={plan.itemsPerExercise} onChange={e => updatePlan(id, 'itemsPerExercise', e.target.value)} style={numInputStyle} />
-                        </label>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.3rem' }}>Count</div>
+                          <div style={{ display: 'flex', gap: '0.2rem' }}>
+                            {COUNT_OPTIONS.map(c => (
+                              <button key={c} onClick={() => updatePlan(id, 'count', c)} style={chipStyle(plan.count === c)}>
+                                {c}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.3rem' }}>Items per ex.</div>
+                          <div style={{ display: 'flex', gap: '0.2rem' }}>
+                            {ITEMS_OPTIONS.map(i => (
+                              <button key={i} onClick={() => updatePlan(id, 'itemsPerExercise', i)} style={chipStyle(plan.itemsPerExercise === i)}>
+                                {i}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )
@@ -294,18 +349,25 @@ export function StudioPage() {
               <label style={{ cursor: 'pointer' }}><input type="checkbox" checked={params.includeTranslations} onChange={e => setParams({...params, includeTranslations: e.target.checked})} /> Include Translations</label>
             </div>
 
-            <label>Word List (optional, comma-separated)<br/><textarea placeholder="e.g. apple, banana" value={params.wordList} onChange={e => setParams({...params, wordList: e.target.value})} style={{ ...inputStyle, height: '80px' }} /></label>
+            <label>
+              <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.3rem' }}>Word List (optional, comma-separated)</div>
+              <textarea
+                placeholder="e.g. apple, banana"
+                value={params.wordList}
+                onChange={e => setParams({...params, wordList: e.target.value})}
+                style={{ width: '100%', padding: '0.7rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '8px', minHeight: '70px', fontFamily: 'inherit', fontSize: '0.95rem', boxSizing: 'border-box' }}
+              />
+            </label>
+
             <Button variant="primary" size="lg" fullWidth onClick={handleGenerate}>Generate Prompt</Button>
           </div>
 
           {generatedPrompt && (
             <div style={{ marginTop: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <h2 style={{ margin: 0 }}>Generated Prompt</h2>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <Button size="sm" variant="warning" onClick={handleMockGenerate}>
-                    🧪 Mock (Test UI)
-                  </Button>
+                  <Button size="sm" variant="warning" onClick={handleMockGenerate}>🧪 Mock (Test UI)</Button>
                   {aiProvider !== 'none' && (
                     <Button size="sm" variant="purple" onClick={handleGenerateWithAI} disabled={isGenerating}>
                       {isGenerating ? 'Generating...' : '✨ Generate with AI'}
@@ -316,7 +378,7 @@ export function StudioPage() {
                   </Button>
                 </div>
               </div>
-              <textarea readOnly value={generatedPrompt} style={{ width: '100%', height: '300px', padding: '1rem', background: '#0f172a', border: '1px solid #475569', color: '#94a3b8', borderRadius: '4px', fontFamily: 'monospace' }} />
+              <textarea readOnly value={generatedPrompt} style={{ width: '100%', height: '300px', padding: '1rem', background: '#0f172a', border: '1px solid #475569', color: '#94a3b8', borderRadius: '8px', fontFamily: 'monospace', fontSize: '0.85rem', boxSizing: 'border-box' }} />
             </div>
           )}
         </div>
@@ -330,7 +392,7 @@ export function StudioPage() {
             placeholder="Paste JSON here..."
             value={jsonText}
             onChange={e => { setJsonText(e.target.value); setResult(null); setSaved(false); }}
-            style={{ width: '100%', height: '250px', background: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '4px', padding: '1rem', fontFamily: 'monospace' }}
+            style={{ width: '100%', height: '250px', background: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '8px', padding: '1rem', fontFamily: 'monospace', fontSize: '0.85rem', boxSizing: 'border-box' }}
           />
 
           <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
@@ -341,7 +403,7 @@ export function StudioPage() {
 
           {saved && (
             <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#166534', border: '1px solid #22c55e', borderRadius: '8px', color: '#dcfce7' }}>
-              <strong>Success!</strong> Set has been saved to the database. You can find it on the Home page.
+              <strong>Success!</strong> Set has been saved. You can find it on the Home page.
             </div>
           )}
 

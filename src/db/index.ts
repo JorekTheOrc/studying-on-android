@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Folder, Set, Exercise, Card, Progress, AppSettings, ImageResult } from '../types'
+import type { Folder, Set, Exercise, Card, Progress, AppSettings, ImageResult, Template } from '../types'
 
 export interface ImageCache {
   word: string
@@ -19,6 +19,7 @@ const db = new Dexie('StudyingOnAndroidDB') as Dexie & {
   progress: EntityTable<Progress, 'id'>
   settings: EntityTable<AppSettings, 'key'>
   imageCache: EntityTable<ImageCache, 'word'>
+  templates: EntityTable<Template, 'id'>
 }
 
 db.version(1).stores({
@@ -38,6 +39,17 @@ db.version(2).stores({
   progress: 'id, set_id, item_id, timestamp',
   settings: 'key',
   imageCache: 'word, fetchedAt',
+})
+
+db.version(3).stores({
+  folders: 'id, parent_id, name',
+  sets: 'id, folder_id, title, *tags',
+  exercises: 'id, set_id, type',
+  cards: 'id, set_id, due, *tags',
+  progress: 'id, set_id, item_id, timestamp',
+  settings: 'key',
+  imageCache: 'word, fetchedAt',
+  templates: 'id, name',
 })
 
 export { db }

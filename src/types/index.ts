@@ -131,3 +131,20 @@ export interface BuilderParams {
   includeTranslations: boolean
   wordList: string
 }
+
+
+export interface Template {
+  id: string
+  name: string
+  topic: string
+  targetLang: string
+  nativeLang: string
+  level: string
+  plans: ExercisePlan[]
+  includeTheory: boolean
+  includeHints: boolean
+  includeTranslations: boolean
+  wordList: string
+  createdAt: number
+}
+

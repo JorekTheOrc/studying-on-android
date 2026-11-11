@@ -41,6 +41,7 @@ export function SettingsPage() {
         progress: await db.progress.toArray(),
         settings: await db.settings.toArray(),
         imageCache: await db.imageCache.toArray(),
+        templates: await db.templates.toArray(),
         exported_at: Date.now(),
         version: 2
       }
@@ -78,7 +79,7 @@ export function SettingsPage() {
         const json = JSON.parse(event.target?.result as string)
         if (!json.sets || !json.exercises) throw new Error("Invalid backup file format.")
 
-        await db.transaction('rw', [db.folders, db.sets, db.exercises, db.cards, db.progress, db.settings, db.imageCache], async () => {
+        await db.transaction('rw', [db.folders, db.sets, db.exercises, db.cards, db.progress, db.settings, db.imageCache, db.templates], async () => {
           await db.folders.clear()
           await db.sets.clear()
           await db.exercises.clear()
@@ -86,6 +87,7 @@ export function SettingsPage() {
           await db.progress.clear()
           await db.settings.clear()
           await db.imageCache.clear()
+          await db.templates.clear()
 
           if (json.folders?.length) await db.folders.bulkAdd(json.folders)
           if (json.sets?.length) await db.sets.bulkAdd(json.sets)
@@ -94,6 +96,7 @@ export function SettingsPage() {
           if (json.progress?.length) await db.progress.bulkAdd(json.progress)
           if (json.settings?.length) await db.settings.bulkAdd(json.settings)
           if (json.imageCache?.length) await db.imageCache.bulkAdd(json.imageCache)
+          if (json.templates?.length) await db.templates.bulkAdd(json.templates)
         })
 
         await alert("Backup restored successfully!")
