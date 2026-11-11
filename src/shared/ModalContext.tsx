@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 
 type ModalType = 'alert' | 'confirm' | 'prompt' | null
@@ -48,6 +48,31 @@ export function ModalProvider({ children }: { children: ReactNode }) {
       setModal(null)
     }
   }
+
+  // Keyboard shortcuts: Escape to cancel, Enter to confirm (unless focus is in text input)
+  useEffect(() => {
+    if (!modal) return
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        if (modal.type === 'alert') handleClose(undefined)
+        else if (modal.type === 'confirm') handleClose(false)
+        else handleClose(null)
+      } else if (e.key === 'Enter') {
+        // If typing in the prompt input, let the input's onKeyDown handle it
+        const target = e.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+        e.preventDefault()
+        if (modal.type === 'alert') handleClose(undefined)
+        else if (modal.type === 'confirm') handleClose(true)
+        else handleClose(inputValue)
+      }
+    }
+
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [modal, inputValue])
 
   return (
     <ModalContext.Provider value={{ alert, confirm, prompt }}>

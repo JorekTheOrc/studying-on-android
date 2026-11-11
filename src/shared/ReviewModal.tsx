@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 
 interface Props {
   isOpen: boolean
@@ -6,6 +7,18 @@ interface Props {
 }
 
 export function ReviewModal({ isOpen, onClose, onSelect }: Props) {
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose() }
+      else if (e.key === '1') onSelect('target_to_native')
+      else if (e.key === '2') onSelect('native_to_target')
+      else if (e.key === '3') onSelect('mixed')
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [isOpen, onClose, onSelect])
+
   if (!isOpen) return null
 
   const options = [
