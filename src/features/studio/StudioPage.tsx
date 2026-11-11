@@ -20,6 +20,47 @@ const EXERCISE_TYPES: { id: ExerciseType; label: string; desc: string }[] = [
   { id: 'translation', label: 'Translation', desc: 'Translate the sentence into the target language.' }
 ]
 
+// Recommended exercise plan per level
+const LEVEL_PRESETS: Record<string, { type: ExerciseType; count: number; itemsPerExercise: number }[]> = {
+  A1: [
+    { type: 'multiple_choice', count: 1, itemsPerExercise: 5 },
+    { type: 'matching', count: 1, itemsPerExercise: 5 },
+  ],
+  A2: [
+    { type: 'multiple_choice', count: 1, itemsPerExercise: 5 },
+    { type: 'fill_blank', count: 1, itemsPerExercise: 5 },
+    { type: 'matching', count: 1, itemsPerExercise: 5 },
+  ],
+  B1: [
+    { type: 'multiple_choice', count: 1, itemsPerExercise: 5 },
+    { type: 'fill_blank', count: 1, itemsPerExercise: 5 },
+    { type: 'sentence_completion', count: 1, itemsPerExercise: 5 },
+    { type: 'true_false_ng', count: 1, itemsPerExercise: 5 },
+  ],
+  B2: [
+    { type: 'multiple_choice', count: 1, itemsPerExercise: 5 },
+    { type: 'fill_blank', count: 1, itemsPerExercise: 5 },
+    { type: 'translation', count: 1, itemsPerExercise: 5 },
+    { type: 'short_answer', count: 1, itemsPerExercise: 5 },
+  ],
+  C1: [
+    { type: 'fill_blank', count: 1, itemsPerExercise: 5 },
+    { type: 'translation', count: 1, itemsPerExercise: 5 },
+    { type: 'short_answer', count: 1, itemsPerExercise: 5 },
+  ],
+  C2: [
+    { type: 'translation', count: 1, itemsPerExercise: 5 },
+    { type: 'short_answer', count: 1, itemsPerExercise: 5 },
+  ],
+}
+
+// Apply preset when level is chosen
+function applyLevelPreset(level: string): BuilderParams['plans'] {
+  const preset = LEVEL_PRESETS[level]
+  if (!preset) return []
+  return preset.map(p => ({ type: p.type, count: p.count, itemsPerExercise: p.itemsPerExercise }))
+}
+
 export function StudioPage() {
   const { alert } = useModal()
   const [activeTab, setActiveTab] = useState<'generate' | 'import'>('generate')
@@ -191,7 +232,36 @@ export function StudioPage() {
               <label style={{ flex: 1 }}>Native Language<br/><input type="text" value={params.nativeLang} onChange={e => setParams({...params, nativeLang: e.target.value})} style={inputStyle} /></label>
             </div>
             <label>Topic<br/><input type="text" placeholder="e.g. Present Simple" value={params.topic} onChange={e => setParams({...params, topic: e.target.value})} style={inputStyle} /></label>
-            <label>Level (A1-C2)<br/><select value={params.level} onChange={e => setParams({...params, level: e.target.value})} style={inputStyle}>{['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => <option key={l} value={l}>{l}</option>)}</select></label>
+            <div>
+              <div style={{ fontSize: '0.9rem', color: '#cbd5e1', marginBottom: '0.5rem' }}>Level (click to apply preset plan)</div>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => {
+                  const active = params.level === l
+                  return (
+                    <button
+                      key={l}
+                      onClick={() => setParams(prev => ({ ...prev, level: l, plans: applyLevelPreset(l) }))}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: active ? '#0ea5e9' : '#1e293b',
+                        color: active ? '#fff' : '#94a3b8',
+                        border: `1px solid ${active ? '#0ea5e9' : '#475569'}`,
+                        borderRadius: '16px',
+                        cursor: 'pointer',
+                        fontWeight: active ? 'bold' : 'normal',
+                        fontSize: '0.9rem',
+                        transition: '0.15s',
+                      }}
+                    >
+                      {l}
+                    </button>
+                  )
+                })}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.4rem' }}>
+                Clicking a level replaces the exercise plan below with a suggested one.
+              </div>
+            </div>
 
             <div style={{ padding: '1.5rem', background: '#1e293b', borderRadius: '8px' }}>
               <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#38bdf8' }}>Exercise Types</h3>
