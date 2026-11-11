@@ -29,6 +29,43 @@ export function SettingsPage() {
     await db.settings.put({ key: 'ai_api_key', value: e.target.value })
   }
 
+  const handleExportAnki = async () => {
+    try {
+      const cards = await db.cards.toArray()
+      if (cards.length === 0) {
+        await alert("No flashcards found to export.")
+        return
+      }
+
+      // CSV escape helper
+      const escapeCsv = (str: string) => {
+        if (!str) return '""'
+        return `"${str.replace(/"/g, '""')}"`
+      }
+
+      // Header + rows
+      const rows = cards.map(c => {
+        const front = escapeCsv(c.front)
+        const back = escapeCsv(c.back)
+        const tags = escapeCsv(c.tags.join(' '))
+        return `${front},${back},${tags}`
+      })
+
+      const csvContent = rows.join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `anki_export_${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      await alert("Anki Export failed: " + e.message)
+    }
+  }
+
   const handleExport = async () => {
     setIsExporting(true)
     try {
@@ -168,7 +205,7 @@ export function SettingsPage() {
           Your data is stored locally. Export a backup to avoid losing progress.
         </p>
 
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
           <button onClick={handleExport} disabled={isExporting} style={{ flex: 1, minWidth: '200px', padding: '0.8rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: isExporting ? 'wait' : 'pointer', fontWeight: 'bold' }}>
             {isExporting ? 'Exporting...' : 'Export Backup (.json)'}
           </button>
@@ -179,6 +216,15 @@ export function SettingsPage() {
               {isImporting ? 'Importing...' : 'Import Backup'}
             </button>
           </div>
+        </div>
+        
+        <div style={{ paddingTop: '1rem', borderTop: '1px solid #334155' }}>
+          <p style={{ color: '#94a3b8', marginBottom: '1rem', fontSize: '0.9rem' }}>
+            Export your flashcards to CSV to import them into the original Anki app.
+          </p>
+          <button onClick={handleExportAnki} style={{ width: '100%', padding: '0.8rem', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+            Export to Anki (.csv)
+          </button>
         </div>
       </div>
     </div>
