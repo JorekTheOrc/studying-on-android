@@ -72,15 +72,16 @@ export interface Exercise {
   type: ExerciseType
   title: string
   instruction: string
-  tags?: string[] // <--- New field
+  tags?: string[]
   items: Item[]
 }
 
 export interface Card {
   id: string
   set_id: string
+  type?: 'basic' | 'cloze'  // <--- NEW
   front: string
-  back: string
+  back?: string             // Cloze cards might not have a back
   tags: string[]
   source_item_id?: string
   due: number

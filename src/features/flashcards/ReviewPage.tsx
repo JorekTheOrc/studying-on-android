@@ -51,30 +51,45 @@ export function ReviewPage() {
 
   const currentCard = sessionQueue[0]
   const cardDisplay = useMemo(() => {
-    if (!currentCard) return { front: '', back: '', frontLang: 'en', backLang: 'ru' }
+    if (!currentCard) return { front: '', back: '', frontLang: 'en', backLang: 'ru', isCloze: false }
     
+    if (currentCard.type === 'cloze') {
+      // For cloze, always show the cloze sentence as "front"
+      return { front: currentCard.front, back: '', frontLang: targetLang, backLang: nativeLang, isCloze: true }
+    }
+
     let showFront = currentCard.front
-    let showBack = currentCard.back
+    let showBack = currentCard.back || ''
     let frontLang = targetLang
     let backLang = nativeLang
 
     if (direction === 'native_to_target') {
-      showFront = currentCard.back
+      showFront = currentCard.back || ''
       showBack = currentCard.front
       frontLang = nativeLang
       backLang = targetLang
     } else if (direction === 'mixed') {
       const charCodeSum = currentCard.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
       if (charCodeSum % 2 === 0) {
-        showFront = currentCard.back
+        showFront = currentCard.back || ''
         showBack = currentCard.front
         frontLang = nativeLang
         backLang = targetLang
       }
     }
 
-    return { front: showFront, back: showBack, frontLang, backLang }
+    return { front: showFront, back: showBack, frontLang, backLang, isCloze: false }
   }, [currentCard, direction, targetLang, nativeLang])
+
+  // Helper to hide cloze text: {{c1::Paris}} -> [___]
+  const renderClozeFront = (text: string) => {
+    return text.replace(/\{\{c\d+::(.*?)\}\}/g, '[___]')
+  }
+
+  // Helper to reveal cloze text
+  const renderClozeBack = (text: string) => {
+    return text.replace(/\{\{c\d+::(.*?)\}\}/g, '$1')
+  }
 
   if (initialCards === undefined) return <p>Loading cards...</p>
   
@@ -123,9 +138,16 @@ export function ReviewPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
         <Link to={backTo} style={{ color: '#94a3b8', textDecoration: 'none' }}>← Quit Review</Link>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <span style={{ color: '#8b5cf6', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>
-            {direction.replace(/_/g, ' ')}
-          </span>
+          {!cardDisplay.isCloze && (
+            <span style={{ color: '#8b5cf6', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>
+              {direction.replace(/_/g, ' ')}
+            </span>
+          )}
+          {cardDisplay.isCloze && (
+             <span style={{ color: '#f59e0b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>
+               Cloze
+             </span>
+          )}
           <span style={{ color: '#94a3b8' }}>Queue: {sessionQueue.length}</span>
         </div>
       </div>
@@ -140,13 +162,29 @@ export function ReviewPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: 0 }}>
-          <h2 style={{ fontSize: '2rem', margin: 0, color: '#e2e8f0', lineHeight: 1.2 }}>{cardDisplay.front}</h2>
-          {ttsEnabled && (
+          <h2 style={{ fontSize: '2rem', margin: 0, color: '#e2e8f0', lineHeight: 1.2 }}>
+            {cardDisplay.isCloze && !isFlipped ? renderClozeFront(cardDisplay.front) : cardDisplay.front}
+          </h2>
+          {ttsEnabled && !cardDisplay.isCloze && (
             <button onClick={(e) => { e.stopPropagation(); speak(cardDisplay.front, cardDisplay.frontLang) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0 }}>🔊</button>
           )}
         </div>
         
-        {isFlipped && (
+        {isFlipped && cardDisplay.isCloze && (
+          <>
+            <hr style={{ width: '50%', borderColor: '#475569', margin: '2rem 0' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <h3 style={{ fontSize: '1.5rem', margin: 0, color: '#38bdf8', lineHeight: 1.4 }}>
+                {renderClozeBack(cardDisplay.front)}
+              </h3>
+              {ttsEnabled && (
+                <button onClick={(e) => { e.stopPropagation(); speak(renderClozeBack(cardDisplay.front), cardDisplay.frontLang) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}>🔊</button>
+              )}
+            </div>
+          </>
+        )}
+
+        {isFlipped && !cardDisplay.isCloze && (
           <>
             <hr style={{ width: '50%', borderColor: '#475569', margin: '2rem 0' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>

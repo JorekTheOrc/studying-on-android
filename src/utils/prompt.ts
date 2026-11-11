@@ -40,13 +40,13 @@ Exercise:
       | "fill_blank" | "matching" | "ordering" | "short_answer" | "translation"
   title: string
   instruction: one-sentence string
-  tags: [string, ...]  // 1-3 descriptive tags (e.g. "grammar", "listening", "A2", "verbs")
+  tags: [string, ...]
   items: [<Item>, ...]
 
 Item shapes by type:
 multiple_choice:
   { "id", "prompt": string, "vocabulary"?: [{"text": "<exact substring>", "translation": "<in NATIVE_LANG>"}],
-    "options": [{"id":"a","text":"...", "vocabulary"?: [{"text": "...", "translation": "..."}]}, ...3-4], 
+    "options": [{"id":"a","text":"...", "vocabulary"?: [...]}, ...3-4], 
     "answer": ["<option id>"], "hint"?, "translation"?, "explanation"? }
 true_false OR true_false_ng:
   { "id", "prompt": string, "vocabulary"?: [...], "answer": ["T"|"F"|"NG"], "hint"?, "translation"?, "explanation"? }
@@ -58,46 +58,59 @@ ordering:
   { "id", "tokens": [string, ...], "correct_order": [string, ...], "hint"?, "translation"? }
 
 Card:
-  { "id", "front", "back", "tags": [string, ...], "source_item_id"? }
+  { 
+    "id": string, 
+    "type": "basic" | "cloze",
+    "front": string, 
+    "back"?: string, 
+    "tags": [string, ...], 
+    "source_item_id"? 
+  }
 
-=== VOCABULARY & HINTS RULES (CRITICAL) ===
+=== CLOZE CARDS (CRITICAL) ===
+For grammar and context, generate Cloze cards instead of basic Front/Back.
+In a Cloze card, "front" contains the full sentence with the target word wrapped in {{c1::word}}.
+Example: 
+{
+  "id": "c1",
+  "type": "cloze",
+  "front": "She {{c1::goes}} to school every day.",
+  "tags": ["grammar", "present_simple"]
+}
+The app will automatically hide "goes" and replace it with [___].
+
+=== VOCABULARY & HINTS RULES ===
 1. If INCLUDE_TRANS is true, provide "vocabulary" for prompts and options.
-2. "vocabulary.text" MUST be an EXACT substring of the text it belongs to. Do not change casing or punctuation.
-3. For verbs in personal form (e.g., "dinliyor"), the translation MUST include the infinitive in brackets.
-   Example: {"text": "dinliyor", "translation": "слушает (инфинитив: dinlemek)"}.
-4. If a word has a suffix (e.g., "parkta"), translate it with the suffix (e.g., "в парке").
-5. Do not overlap: if you include a phrase, do not include its individual words in the same array.
-6. **Hints MUST NOT CONTAIN THE CORRECT ANSWER.** A hint should provide a grammar rule, a context clue, or a partial explanation. NEVER write the answer itself in the hint.
+2. "vocabulary.text" MUST be an EXACT substring of the text it belongs to. Do not change casing.
+3. For verbs in personal form, the translation MUST include the infinitive in brackets.
+4. If a word has a suffix, translate it with the suffix.
+5. Do not overlap: if you include a phrase, do not include its individual words.
+6. **Hints MUST NOT CONTAIN THE CORRECT ANSWER.** Provide a grammar rule or context clue.
 
 === THEORY RULES ===
 1. If INCLUDE_THEORY is true, write a DETAILED explanation (up to 1500 chars).
-2. Use Markdown formatting, including tables if appropriate (e.g., for conjugation).
-3. Do NOT compress the theory too much. Explain the rules clearly.
+2. Use Markdown formatting, including tables.
 
 === HARD RULES — any violation makes the output invalid ===
 1. Output MUST be a single valid JSON object. No trailing commas.
-2. Every id (exercise, item, option, card) is unique within this response.
-3. \`answer\` is ALWAYS an array, even for a single value.
-4. \`multiple_choice\`: 3-4 options; exactly one correct option id in \`answer\`; the correct answer must exist in \`options\`.
+2. Every id is unique within this response.
+3. \`answer\` is ALWAYS an array.
+4. **AMBIGUITY IS FORBIDDEN.** Provide enough context so EXACTLY ONE answer is undeniably correct. If multiple options are grammatically correct, include ALL valid ids in the \`answer\` array. Do NOT place the correct option in a predictable position.
 5. \`true_false_ng\`: \`answer\` is exactly ["T"] or ["F"] or ["NG"].
 6. \`true_false\`: \`answer\` is exactly ["T"] or ["F"].
-7. \`matching\`: left and right arrays have equal length.
-8. \`ordering\`: \`correct_order\` is a permutation of \`tokens\`.
-9. \`fill_blank\`: number of \`___\` in \`prompt\` equals number of strings in \`answer\`.
-10. WORD_LIST (if used): every word from the list must appear exactly once. No invented words.
-11. Minified JSON only (no spaces, no newlines). No extra fields.
-12. **Every exercise MUST have a "tags" array with 1-3 descriptive tags** (e.g., ["listening", "A2"]).
+7. \`matching\`: equal length; mix the order.
+8. \`ordering\`: \`correct_order\` is a permutation of \`tokens\`; \`tokens\` should be shuffled.
+9. \`fill_blank\`: number of \`___\` equals number of strings in \`answer\`.
+10. Minified JSON only. No extra fields.
 
 === SELF-CHECK (do silently before output) ===
-- multiple_choice: every \`answer\` id exists in options. Did I miss any valid alternative answers (e.g., Who/Whom)? If yes, add them to \`answer\`.
-- true_false: \`answer\` is "T","F".
+- multiple_choice: every \`answer\` id exists in options. Did I miss any valid alternatives?
 - true_false_ng: \`answer\` is "T","F","NG".
 - matching: equal length of left and right.
 - ordering: sorted(correct_order) == sorted(tokens).
 - fill_blank: ___ count == len(answer).
-- vocabulary: text matches exactly.
-- every exercise has "tags" array.
-- ids: no duplicates anywhere.
+- cloze cards: front contains {{c1::...}}.
+- ids: no duplicates.
 
 Output only the JSON object. Nothing else.`
 

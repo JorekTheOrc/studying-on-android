@@ -74,22 +74,14 @@ export function validateImportedSet(jsonString: string): ValidationResult {
         errors.push(`${itemPrefix}: 'answer' must be an array`)
       }
       
-      if (ex.type === 'ordering' && !Array.isArray(item.correct_order)) {
-        errors.push(`${itemPrefix}: 'correct_order' must be an array`)
-      }
-      
-      if (ex.type === 'matching' && !Array.isArray(item.pairs)) {
-        errors.push(`${itemPrefix}: 'pairs' must be an array`)
-      }
+      if (ex.type === 'ordering' && !Array.isArray(item.correct_order)) errors.push(`${itemPrefix}: 'correct_order' must be an array`)
+      if (ex.type === 'matching' && !Array.isArray(item.pairs)) errors.push(`${itemPrefix}: 'pairs' must be an array`)
 
       if (ex.type === 'multiple_choice') {
         if (!Array.isArray(item.options) || item.options.length < 3) errors.push(`${itemPrefix}: Needs at least 3 options`)
-        // Every answer ID must exist in options
         if (Array.isArray(item.answer)) {
           for (const id of item.answer) {
-            if (!item.options.find((o: any) => o.id === id)) {
-              errors.push(`${itemPrefix}: Correct answer ID '${id}' not found in options`)
-            }
+            if (!item.options.find((o: any) => o.id === id)) errors.push(`${itemPrefix}: Correct answer ID '${id}' not found in options`)
           }
         }
       }
@@ -122,7 +114,7 @@ export function validateImportedSet(jsonString: string): ValidationResult {
       type: ex.type,
       title: ex.title || ex.type,
       instruction: ex.instruction || '',
-      tags: ex.tags || [], // <--- Save tags
+      tags: ex.tags || [],
       items: validItems
     })
   })
@@ -132,11 +124,19 @@ export function validateImportedSet(jsonString: string): ValidationResult {
       if (!c.id || allIds.has(c.id)) errors.push(`Card ${i + 1}: Missing or duplicate id`)
       else allIds.add(c.id)
 
-      if (!c.front || !c.back) errors.push(`Card ${i + 1}: Missing 'front' or 'back'`)
+      const cardType = c.type === 'cloze' ? 'cloze' : 'basic'
+      
+      if (cardType === 'basic' && (!c.front || !c.back)) {
+         errors.push(`Card ${i + 1} (basic): Missing 'front' or 'back'`)
+      }
+      if (cardType === 'cloze' && !c.front) {
+         errors.push(`Card ${i + 1} (cloze): Missing 'front' text with {{c1::...}}`)
+      }
 
       cards.push({
         id: c.id || generateUUID(),
         set_id: set.id,
+        type: cardType,
         front: c.front || '',
         back: c.back || '',
         tags: c.tags || [],
