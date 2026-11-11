@@ -1,12 +1,14 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Folder, Set, Exercise, Card, Progress, AppSettings } from '../types'
+import type { Folder, Set, Exercise, Card, Progress, AppSettings, ImageResult } from '../types'
 
 export interface ImageCache {
-  word: string         // primary key
-  url: string          // URL картинки (для отображения)
-  dataUrl?: string     // base64 (для бэкапа — если оригинал удалится)
+  word: string
+  url: string
+  dataUrl?: string
   lang: string
   fetchedAt: number
+  candidates?: ImageResult[]
+  currentIndex?: number
 }
 
 const db = new Dexie('StudyingOnAndroidDB') as Dexie & {

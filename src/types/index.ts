@@ -38,6 +38,12 @@ export interface Set {
   updated_at: number
 }
 
+export interface ImageResult {
+  url: string
+  thumbnail: string
+  title: string
+}
+
 export interface VocabItem {
   text: string
   translation: string

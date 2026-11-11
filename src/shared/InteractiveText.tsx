@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import type { VocabItem } from '../types'
+import type { VocabItem, ImageResult } from '../types'
 import { speak } from '../utils/tts'
-import { findImage, prefetchImages } from '../utils/imageSearch'
+import { getCachedImage, searchImages, saveChosenImage, clearImage } from '../utils/imageSearch'
 
 interface Props {
   text: string
@@ -15,50 +15,47 @@ interface Props {
 
 export function InteractiveText({ text, vocabulary, onWordClick, style, lang = 'en', ttsEnabled = true, imagesEnabled = true }: Props) {
   const [activeWord, setActiveWord] = useState<string | null>(null)
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [isLoadingImage, setIsLoadingImage] = useState(false)
+  const [currentImage, setCurrentImage] = useState<string | null>(null)
+  const [candidates, setCandidates] = useState<ImageResult[]>([])
+  const [currentIdx, setCurrentIdx] = useState(0)
+  const [currentTitle, setCurrentTitle] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
   const [showBelow, setShowBelow] = useState(false)
   const containerRef = useRef<HTMLSpanElement>(null)
 
-  // Prefetch all images for this text's vocab on mount
-  const vocabKey = vocabulary?.map(v => v.text).join('|') || ''
+  // Load cached image when active word changes
   useEffect(() => {
-    if (!imagesEnabled || !vocabulary || vocabulary.length === 0) return
-    const timer = setTimeout(() => {
-      prefetchImages(vocabulary.map(v => v.text), lang)
-    }, 200)
-    return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vocabKey, imagesEnabled])
+    if (!activeWord || !imagesEnabled) {
+      setCurrentImage(null)
+      setCandidates([])
+      setCurrentIdx(0)
+      setCurrentTitle('')
+      return
+    }
+    let cancelled = false
+    getCachedImage(activeWord, lang).then(cached => {
+      if (cancelled) return
+      if (cached) {
+        setCurrentImage(cached.url)
+        setCandidates(cached.candidates || [])
+        setCurrentIdx(cached.currentIndex || 0)
+        if (cached.candidates && cached.currentIndex !== undefined) {
+          setCurrentTitle(cached.candidates[cached.currentIndex]?.title || '')
+        }
+      }
+    })
+    return () => { cancelled = true }
+  }, [activeWord, imagesEnabled, lang])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setActiveWord(null)
-        setImageUrl(null)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  useEffect(() => {
-    if (!activeWord || !imagesEnabled) {
-      setImageUrl(null)
-      return
-    }
-    let cancelled = false
-    setIsLoadingImage(true)
-    const vocabItem = vocabulary?.find(v => v.text.toLowerCase() === activeWord.toLowerCase())
-    const query = vocabItem ? vocabItem.text : activeWord
-    findImage(query, lang).then(url => {
-      if (!cancelled) {
-        setImageUrl(url)
-        setIsLoadingImage(false)
-      }
-    })
-    return () => { cancelled = true }
-  }, [activeWord, imagesEnabled, vocabulary])
 
   if (!vocabulary || vocabulary.length === 0) return <span style={style}>{text}</span>
 
@@ -70,10 +67,50 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
   const handleWordClick = (e: React.MouseEvent<HTMLSpanElement>, word: string) => {
     e.stopPropagation()
     const rect = e.currentTarget.getBoundingClientRect()
-    // Show below if word is in the top 45% of viewport (no room above)
     setShowBelow(rect.top < window.innerHeight * 0.45)
     setActiveWord(activeWord === word ? null : word)
     if (onWordClick) onWordClick(word)
+  }
+
+  const loadCandidates = async () => {
+    if (!activeWord) return
+    setIsLoading(true)
+    try {
+      const results = await searchImages(activeWord, lang)
+      setCandidates(results)
+      if (results.length > 0) {
+        setCurrentIdx(0)
+        setCurrentImage(results[0].thumbnail)
+        setCurrentTitle(results[0].title)
+        await saveChosenImage(activeWord, lang, results[0].url, results, 0)
+      } else {
+        setCurrentImage(null)
+        setCurrentTitle('')
+      }
+    } catch {
+      setCandidates([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const goToIndex = async (newIdx: number) => {
+    if (!activeWord || candidates.length === 0) return
+    if (newIdx < 0 || newIdx >= candidates.length) return
+    const target = candidates[newIdx]
+    setCurrentIdx(newIdx)
+    setCurrentImage(target.thumbnail)
+    setCurrentTitle(target.title)
+    await saveChosenImage(activeWord, lang, target.url, candidates, newIdx)
+  }
+
+  const handleClearImage = async () => {
+    if (!activeWord) return
+    await clearImage(activeWord, lang)
+    setCurrentImage(null)
+    setCandidates([])
+    setCurrentIdx(0)
+    setCurrentTitle('')
   }
 
   return (
@@ -94,7 +131,7 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
               >
                 {part}
               </span>
-              
+
               {activeWord === match.text && (
                 <span
                   style={{
@@ -104,29 +141,114 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
                     fontSize: '0.9rem', zIndex: 9999, border: '1px solid #475569',
                     boxShadow: '0 4px 15px rgba(0,0,0,0.6)',
                     display: 'flex', flexDirection: 'column', gap: '0.4rem',
-                    minWidth: '160px', maxWidth: '220px', whiteSpace: 'normal'
+                    minWidth: '180px', maxWidth: '240px', whiteSpace: 'normal'
                   }}
                 >
-                  {imagesEnabled && imageUrl && (
-                    <img
-                      src={imageUrl}
-                      alt={match.text}
-                      style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '4px' }}
-                      onError={() => setImageUrl(null)}
-                    />
-                  )}
-                  {imagesEnabled && isLoadingImage && !imageUrl && (
-                    <div style={{ width: '100%', height: '100px', background: '#0f172a', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '0.75rem' }}>
-                      Loading...
+                  {/* IMAGE + ARROWS */}
+                  {imagesEnabled && currentImage && (
+                    <div style={{ position: 'relative' }}>
+                      <img
+                        src={currentImage}
+                        alt={match.text}
+                        style={{ width: '100%', height: '110px', objectFit: 'cover', borderRadius: '4px', display: 'block' }}
+                        onError={() => setCurrentImage(null)}
+                      />
+
+                      {/* Arrows (only if candidates has more than 1) */}
+                      {candidates.length > 0 && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); goToIndex(currentIdx - 1) }}
+                            disabled={currentIdx === 0}
+                            style={{
+                              position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)',
+                              background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none',
+                              borderRadius: '50%', width: '26px', height: '26px',
+                              cursor: currentIdx === 0 ? 'not-allowed' : 'pointer',
+                              opacity: currentIdx === 0 ? 0.4 : 1, fontSize: '0.8rem',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}
+                          >
+                            ◀
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); goToIndex(currentIdx + 1) }}
+                            disabled={currentIdx === candidates.length - 1}
+                            style={{
+                              position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)',
+                              background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none',
+                              borderRadius: '50%', width: '26px', height: '26px',
+                              cursor: currentIdx === candidates.length - 1 ? 'not-allowed' : 'pointer',
+                              opacity: currentIdx === candidates.length - 1 ? 0.4 : 1, fontSize: '0.8rem',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}
+                          >
+                            ▶
+                          </button>
+                        </>
+                      )}
+
+                      {/* Title of Wikipedia article */}
+                      {currentTitle && (
+                        <span style={{
+                          position: 'absolute', bottom: '4px', right: '4px',
+                          background: 'rgba(0,0,0,0.75)', padding: '1px 5px', borderRadius: '4px',
+                          fontSize: '0.6rem', color: '#cbd5e1', maxWidth: '60%',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                        }}>
+                          {currentTitle}
+                        </span>
+                      )}
+
+                      {/* Counter */}
+                      {candidates.length > 0 && (
+                        <span style={{
+                          position: 'absolute', bottom: '4px', left: '50%', transform: 'translateX(-50%)',
+                          background: 'rgba(0,0,0,0.7)', padding: '1px 6px', borderRadius: '8px',
+                          fontSize: '0.65rem', color: '#cbd5e1'
+                        }}>
+                          {currentIdx + 1} / {candidates.length}
+                        </span>
+                      )}
+
+                      {/* Delete image button */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleClearImage() }}
+                        style={{
+                          position: 'absolute', top: '4px', right: '4px',
+                          background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none',
+                          borderRadius: '4px', padding: '2px 6px', cursor: 'pointer',
+                          fontSize: '0.7rem',
+                        }}
+                        title="Remove image"
+                      >
+                        ✕
+                      </button>
                     </div>
                   )}
 
+                  {/* Choose image button (if none or need to change) */}
+                  {imagesEnabled && !currentImage && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); loadCandidates() }}
+                      disabled={isLoading}
+                      style={{
+                        padding: '0.4rem', background: '#0f172a', border: '1px dashed #475569',
+                        color: '#94a3b8', borderRadius: '4px', cursor: isLoading ? 'wait' : 'pointer',
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      {isLoading ? 'Searching...' : '🖼 Choose image'}
+                    </button>
+                  )}
+
+                  {/* TRANSLATION + SPEAKER */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                     <strong style={{ wordBreak: 'break-word' }}>{match.translation}</strong>
                     {ttsEnabled && (
-                      <span 
-                        onClick={(e) => { e.stopPropagation(); speak(match.text, lang); }} 
-                        style={{ cursor: 'pointer', fontSize: '1.2rem', padding: '0 0.2rem' }} 
+                      <span
+                        onClick={(e) => { e.stopPropagation(); speak(match.text, lang); }}
+                        style={{ cursor: 'pointer', fontSize: '1.2rem', padding: '0 0.2rem' }}
                         title="Listen"
                       >
                         🔊

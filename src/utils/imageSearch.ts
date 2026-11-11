@@ -1,28 +1,48 @@
 import { db } from '../db'
-
-const MAX_CONCURRENT = 2
-let activeCount = 0
-const queue: Array<() => void> = []
-function pump() {
-  while (activeCount < MAX_CONCURRENT && queue.length > 0) {
-    const task = queue.shift()!
-    activeCount++
-    task()
-  }
-}
-function enqueue<T>(fn: () => Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    queue.push(async () => {
-      try { resolve(await fn()) }
-      catch (e) { reject(e) }
-      finally { activeCount--; pump() }
-    })
-    pump()
-  })
-}
+import type { ImageResult } from '../types'
 
 const LANG_MAP: Record<string, string> = {
   en: 'en', ru: 'ru', tr: 'tr', es: 'es', de: 'de', fr: 'fr', uk: 'uk',
+}
+
+// Whitelist of disambiguation tags we trust
+const GOOD_TAGS = [
+  'fruit', 'animal', 'color', 'colour', 'food', 'plant', 'tree', 'bird',
+  'fish', 'insect', 'mammal', 'vegetable', 'drink', 'beverage', 'flower',
+  'mineral', 'metal', 'instrument', 'vehicle', 'clothing', 'tool',
+]
+
+// Reject pages whose title contains these hints (they are not pictures of the object)
+const REJECT_WORDS = [
+  'band', 'album', 'song', 'film', 'movie', 'novel', 'book', 'series',
+  'video game', 'magazine', 'company', 'corporation', 'brand', 'record label',
+  'surname', 'given name', 'disambiguation', 'mythology', 'deity',
+]
+
+// Rank a Wikipedia page title against the search word.
+// Lower = better. 99 = reject.
+function rankTitle(title: string, word: string): number {
+  const t = title.toLowerCase().trim()
+  const w = word.toLowerCase().trim()
+
+  // Hard reject obvious bad pages
+  if (REJECT_WORDS.some(r => t.includes(r))) return 99
+
+  // Exact match — best
+  if (t === w) return 1
+
+  // "Word (tag)" — usually good if tag is sensible
+  const m = t.match(/^(.+?)\s*\((.+?)\)$/)
+  if (m && m[1].trim() === w) {
+    const tag = m[2].toLowerCase()
+    if (GOOD_TAGS.some(g => tag.includes(g))) return 2
+    return 5 // unknown tag — let user see it, but lower priority
+  }
+
+  // "Word Something" — might be company/person/place, but worth showing
+  if (t.startsWith(w + ' ')) return 8
+
+  return 99
 }
 
 async function urlToDataUrl(url: string): Promise<string | undefined> {
@@ -41,41 +61,89 @@ async function urlToDataUrl(url: string): Promise<string | undefined> {
   }
 }
 
-async function fetchFromWikipedia(word: string, lang: string): Promise<string | null> {
+// Search Wikipedia for candidate images with strict filtering
+export async function searchImages(word: string, lang: string = 'en'): Promise<ImageResult[]> {
+  const cleanWord = word.trim()
+  if (!cleanWord) return []
+
   const subdomain = LANG_MAP[lang.toLowerCase()] || 'en'
   const params = new URLSearchParams({
     action: 'query',
-    titles: word,
+    generator: 'search',
+    gsrsearch: `intitle:${cleanWord}`,
+    gsrlimit: '15',
+    gsrnamespace: '0',
     prop: 'pageimages',
-    pithumbsize: '200',
+    pithumbsize: '400',
     origin: '*',
     format: 'json',
   })
-  const url = `https://${subdomain}.wikipedia.org/w/api.php?${params.toString()}`
-  const res = await fetch(url)
-  if (!res.ok) return null
-  const data = await res.json()
-  const pages = data.query?.pages
-  if (!pages) return null
-  const page = Object.values(pages)[0] as any
-  const thumb = page?.thumbnail?.source
-  if (!thumb) return null
-  return thumb.startsWith('https://') ? thumb : null
-}
-
-export async function findImage(word: string, lang: string = 'en'): Promise<string | null> {
-  const cleanWord = word.trim().toLowerCase()
-  if (!cleanWord) return null
-  const cacheKey = `${lang}:${cleanWord}`
 
   try {
+    const res = await fetch(`https://${subdomain}.wikipedia.org/w/api.php?${params.toString()}`)
+    if (!res.ok) return []
+    const data = await res.json()
+    const pages = data.query?.pages
+    if (!pages) return []
+
+    const candidates: Array<{ rank: number; result: ImageResult }> = []
+
+    for (const page of Object.values(pages) as any[]) {
+      if (page.missing !== undefined) continue
+      const thumb = page.thumbnail?.source
+      if (!thumb || !thumb.startsWith('https://')) continue
+
+      const rank = rankTitle(page.title || '', cleanWord)
+      if (rank === 99) continue
+
+      candidates.push({
+        rank,
+        result: {
+          url: page.original?.source || thumb,
+          thumbnail: thumb,
+          title: page.title,
+        },
+      })
+    }
+
+    // Sort by rank, then take up to 6
+    candidates.sort((a, b) => a.rank - b.rank)
+    return candidates.slice(0, 6).map(c => c.result)
+  } catch {
+    return []
+  }
+}
+
+// Get the currently saved image for a word
+export async function getCachedImage(word: string, lang: string = 'en'): Promise<{
+  url: string
+  candidates?: ImageResult[]
+  currentIndex?: number
+} | null> {
+  const cacheKey = `${lang}:${word.toLowerCase().trim()}`
+  try {
     const cached = await db.imageCache.get(cacheKey)
-    if (cached) return cached.dataUrl || cached.url
-  } catch {}
+    if (!cached) return null
+    if (cached.url === '') return null
+    return {
+      url: cached.dataUrl || cached.url,
+      candidates: cached.candidates,
+      currentIndex: cached.currentIndex,
+    }
+  } catch {
+    return null
+  }
+}
 
-  const url = await enqueue(() => fetchFromWikipedia(cleanWord, lang)).catch(() => null)
-  if (!url) return null
-
+// Save the image the user picked
+export async function saveChosenImage(
+  word: string,
+  lang: string,
+  url: string,
+  candidates: ImageResult[],
+  currentIndex: number
+): Promise<void> {
+  const cacheKey = `${lang}:${word.toLowerCase().trim()}`
   const dataUrl = await urlToDataUrl(url).catch(() => undefined)
 
   try {
@@ -85,16 +153,18 @@ export async function findImage(word: string, lang: string = 'en'): Promise<stri
       dataUrl,
       lang,
       fetchedAt: Date.now(),
+      candidates,
+      currentIndex,
     })
   } catch (e) {
     console.warn('[Image Cache] Save failed:', e)
   }
-
-  return dataUrl || url
 }
 
-export function prefetchImages(words: string[], lang: string = 'en') {
-  for (const w of words) {
-    findImage(w, lang).catch(() => {})
-  }
+// Remove chosen image
+export async function clearImage(word: string, lang: string = 'en'): Promise<void> {
+  const cacheKey = `${lang}:${word.toLowerCase().trim()}`
+  try {
+    await db.imageCache.delete(cacheKey)
+  } catch {}
 }
