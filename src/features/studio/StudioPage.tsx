@@ -50,6 +50,7 @@ export function StudioPage() {
   })
   const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [copied, setCopied] = useState(false)
+  const [autoCopied, setAutoCopied] = useState(false)
 
   const aiProviderSetting = useLiveQuery(() => db.settings.get('ai_provider'))
   const aiProvider = aiProviderSetting?.value || 'none'
@@ -107,9 +108,33 @@ export function StudioPage() {
   }
 
   // --- BUILDER ---
-  const handleGenerate = () => {
-    setGeneratedPrompt(generatePrompt(params))
+  const handleGenerate = async () => {
+    const prompt = generatePrompt(params)
+    setGeneratedPrompt(prompt)
     setCopied(false)
+    try {
+      await navigator.clipboard.writeText(prompt)
+      setAutoCopied(true)
+      setTimeout(() => setAutoCopied(false), 2500)
+    } catch {
+      // Clipboard unavailable — manual Copy button is always visible
+    }
+  }
+
+  const handlePasteFromClipboard = async (auto: boolean) => {
+    if (auto && jsonText.trim()) return
+    try {
+      const text = await navigator.clipboard.readText()
+      const trimmed = text.trim()
+      if (!trimmed) return
+      if (auto && !trimmed.startsWith('{')) return
+      setJsonText(trimmed)
+      setSaved(false)
+      const res = validateImportedSet(trimmed)
+      setResult(res)
+    } catch {
+      // Clipboard read denied — user can paste manually
+    }
   }
 
   const handleCopy = async () => {
@@ -379,6 +404,18 @@ export function StudioPage() {
                 </div>
               </div>
               <textarea readOnly value={generatedPrompt} style={{ width: '100%', height: '300px', padding: '1rem', background: '#0f172a', border: '1px solid #475569', color: '#94a3b8', borderRadius: '8px', fontFamily: 'monospace', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+
+              {autoCopied && (
+                <div style={{
+                  position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+                  background: '#22c55e', color: '#fff', padding: '0.7rem 1.5rem',
+                  borderRadius: '8px', fontWeight: 'bold', zIndex: 10000,
+                  boxShadow: '0 4px 20px rgba(34,197,94,0.5)',
+                  animation: 'fadeIn 0.2s ease',
+                }}>
+                  ✓ Prompt copied to clipboard
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -389,13 +426,17 @@ export function StudioPage() {
           <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>Paste the JSON response from AI here to validate and save it.</p>
 
           <textarea
-            placeholder="Paste JSON here..."
+            placeholder="Paste JSON here... (or click and it auto-pastes from clipboard)"
             value={jsonText}
             onChange={e => { setJsonText(e.target.value); setResult(null); setSaved(false); }}
+            onFocus={() => handlePasteFromClipboard(true)}
             style={{ width: '100%', height: '250px', background: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '8px', padding: '1rem', fontFamily: 'monospace', fontSize: '0.85rem', boxSizing: 'border-box' }}
           />
 
-          <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
+          <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <Button variant="secondary" onClick={() => handlePasteFromClipboard(false)}>
+              📋 Paste from Clipboard
+            </Button>
             <Button variant="primary" onClick={handleValidate} disabled={!jsonText.trim()}>
               Validate JSON
             </Button>

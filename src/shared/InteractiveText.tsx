@@ -42,7 +42,13 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
     getCachedImage(activeWord, lang).then(async cached => {
       if (cancelled) return
 
-      // Show cached image immediately (if exists)
+      // 1. Negative cache — user explicitly deleted this image. Do NOT re-search.
+      if (cached && cached.url === '') {
+        setIsLoading(false)
+        return
+      }
+
+      // 2. Positive cache — show immediately
       if (cached && cached.url) {
         setCurrentImage(cached.url)
         setCandidates(cached.candidates || [])
@@ -50,23 +56,17 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
         setCurrentTitle(cached.candidates?.[cached.currentIndex || 0]?.title || '')
       }
 
-      // Fetch candidates in background if we don't have them
-      if (!cached || !cached.candidates || cached.candidates.length === 0) {
+      // 3. No cache at all — auto-search once and save first candidate
+      if (cached === null) {
         try {
           const results = await searchImages(activeWord, lang)
           if (cancelled) return
-
           if (results.length > 0) {
             setCandidates(results)
-            let finalIdx = 0
-            if (cached && cached.url) {
-              const idx = results.findIndex(r => r.thumbnail === cached.url || r.url === cached.url)
-              if (idx >= 0) finalIdx = idx
-            }
-            setCurrentIdx(finalIdx)
-            setCurrentImage(results[finalIdx].thumbnail)
-            setCurrentTitle(results[finalIdx].title)
-            await saveChosenImage(activeWord, lang, results[finalIdx].url, results, finalIdx)
+            setCurrentIdx(0)
+            setCurrentImage(results[0].thumbnail)
+            setCurrentTitle(results[0].title)
+            await saveChosenImage(activeWord, lang, results[0].url, results, 0)
           }
         } catch {
           // silent

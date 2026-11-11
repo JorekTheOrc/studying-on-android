@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { db } from '../../db'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useModal } from '../../shared/ModalContext'
+import { resetAllImages } from '../../utils/imageSearch'
 import { Button, Input } from '../../shared/ui'
 
 export function SettingsPage() {
@@ -146,6 +147,13 @@ export function SettingsPage() {
     }
   }
 
+  const handleResetImages = async () => {
+    const ok = await confirm('Reset ALL image selections? Every word will be re-searched on next click.', 'Reset Image Cache')
+    if (!ok) return
+    await resetAllImages()
+    await alert('Image cache cleared.')
+  }
+
   const sectionStyle = { padding: '1.5rem', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', marginBottom: '1.5rem' }
 
   return (
@@ -239,6 +247,16 @@ export function SettingsPage() {
         </p>
         <Button variant="purple" fullWidth onClick={handleExportAnki}>
           Export to Anki (.csv)
+        </Button>
+      </div>
+
+      <div style={sectionStyle}>
+        <h2 style={{ marginTop: 0, fontSize: '1.15rem' }}>Image Cache</h2>
+        <p style={{ color: '#94a3b8', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+          Clear all saved image choices. Use this if you want to re-search images for all words (e.g., after switching the image source).
+        </p>
+        <Button variant="danger" fullWidth onClick={handleResetImages}>
+          Reset All Image Cache
         </Button>
       </div>
     </div>

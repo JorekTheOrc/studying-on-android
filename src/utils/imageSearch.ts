@@ -124,6 +124,10 @@ export async function searchImages(word: string, lang: string = 'en'): Promise<I
   return results
 }
 
+// Returns:
+//   null = no cache entry at all → safe to auto-search
+//   { url: '', ... } = negative cache entry (user deleted) → DON'T auto-search
+//   { url: '...', ... } = positive cache entry → show image
 export async function getCachedImage(word: string, lang: string = 'en'): Promise<{
   url: string
   candidates?: ImageResult[]
@@ -133,7 +137,10 @@ export async function getCachedImage(word: string, lang: string = 'en'): Promise
   try {
     const cached = await db.imageCache.get(cacheKey)
     if (!cached) return null
-    if (cached.url === '') return null
+    if (cached.url === '') {
+      // Negative cache — user explicitly removed
+      return { url: '', candidates: [], currentIndex: 0 }
+    }
     return {
       url: cached.dataUrl || cached.url,
       candidates: cached.candidates,
@@ -169,9 +176,26 @@ export async function saveChosenImage(
   }
 }
 
+// Negative cache: user explicitly removed the image for this word.
+// We mark it as "no image" so we don't auto-search and re-add garbage.
 export async function clearImage(word: string, lang: string = 'en'): Promise<void> {
   const cacheKey = `${lang}:${word.toLowerCase().trim()}`
   try {
-    await db.imageCache.delete(cacheKey)
+    await db.imageCache.put({
+      word: cacheKey,
+      url: '',
+      dataUrl: undefined,
+      lang,
+      fetchedAt: Date.now(),
+      candidates: [],
+      currentIndex: 0,
+    })
+  } catch {}
+}
+
+// Wipe entire image cache — useful after switching image sources
+export async function resetAllImages(): Promise<void> {
+  try {
+    await db.imageCache.clear()
   } catch {}
 }
