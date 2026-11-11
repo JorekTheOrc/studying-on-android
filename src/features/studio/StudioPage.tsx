@@ -74,6 +74,41 @@ export function StudioPage() {
     }
   }
 
+  const handleMockGenerate = () => {
+    const mockJson = JSON.stringify({
+      schema_version: 1,
+      set_id: "mock-" + Date.now(),
+      title: "Mock Test (No API)",
+      topic: "Present Simple",
+      target_lang: "English",
+      native_lang: "Russian",
+      level: "A2",
+      theory_md: "This is a mock theory generated locally.",
+      exercises: [{
+        id: "mock-ex1",
+        type: "multiple_choice",
+        title: "Mock Choice",
+        items: [{
+          id: "mock-i1",
+          prompt: "He ___ to school.",
+          options: [
+            { id: "a", text: "go" },
+            { id: "b", text: "goes" },
+            { id: "c", text: "going" }
+          ],
+          answer: ["b"],
+          hint: "3rd person singular"
+        }]
+      }]
+    }, null, 2)
+    
+    setJsonText(mockJson)
+    setActiveTab('import')
+    const res = validateImportedSet(mockJson)
+    setResult(res)
+    setSaved(false)
+  }
+
   const updatePlan = (type: ExerciseType, field: 'count' | 'itemsPerExercise', value: string) => {
     setParams(prev => {
       const existing = prev.plans.find(p => p.type === type) || { type, count: 0, itemsPerExercise: 5 }
@@ -195,10 +230,13 @@ export function StudioPage() {
             <div style={{ marginTop: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <h2 style={{ margin: 0 }}>Generated Prompt</h2>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button onClick={handleMockGenerate} style={{ padding: '0.5rem 1rem', background: '#eab308', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    🧪 Mock (Test UI)
+                  </button>
                   {aiProvider !== 'none' && (
                     <button onClick={handleGenerateWithAI} disabled={isGenerating} style={{ padding: '0.5rem 1rem', background: isGenerating ? '#334155' : '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: isGenerating ? 'wait' : 'pointer', fontWeight: 'bold' }}>
-                      {isGenerating ? 'Generating with AI...' : '✨ Generate with AI'}
+                      {isGenerating ? 'Generating...' : '✨ Generate with AI'}
                     </button>
                   )}
                   <button onClick={handleCopy} style={{ padding: '0.5rem 1rem', background: copied ? '#22c55e' : '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
