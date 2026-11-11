@@ -47,7 +47,9 @@ function rankTitle(title: string, word: string): number {
 
 async function urlToDataUrl(url: string): Promise<string | undefined> {
   try {
-    const res = await fetch(url, { mode: 'cors' })
+    // Use weserv.nl as a reliable CORS proxy just to get the image bytes
+    const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=400`
+    const res = await fetch(proxyUrl)
     if (!res.ok) return undefined
     const blob = await res.blob()
     return await new Promise<string>((resolve, reject) => {
@@ -167,4 +169,28 @@ export async function clearImage(word: string, lang: string = 'en'): Promise<voi
   try {
     await db.imageCache.delete(cacheKey)
   } catch {}
+}
+
+// Save a manually provided image URL
+export async function saveManualImage(
+  word: string,
+  lang: string,
+  url: string
+): Promise<void> {
+  const cacheKey = `${lang}:${word.toLowerCase().trim()}`
+  const dataUrl = await urlToDataUrl(url).catch(() => undefined)
+
+  try {
+    await db.imageCache.put({
+      word: cacheKey,
+      url,
+      dataUrl,
+      lang,
+      fetchedAt: Date.now(),
+      candidates: [{ url, thumbnail: url, title: 'Manual' }],
+      currentIndex: 0,
+    })
+  } catch (e) {
+    console.warn('[Image Cache] Save failed:', e)
+  }
 }
