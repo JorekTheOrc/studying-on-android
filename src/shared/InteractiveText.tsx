@@ -23,47 +23,63 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
   const [showBelow, setShowBelow] = useState(false)
   const containerRef = useRef<HTMLSpanElement>(null)
 
-  // Load cached image when active word changes
+  // Load image when active word changes
   useEffect(() => {
+    // Reset everything first so previous word's image doesn't flash
+    setCurrentImage(null)
+    setCandidates([])
+    setCurrentIdx(0)
+    setCurrentTitle('')
+
     if (!activeWord || !imagesEnabled) {
-      setCurrentImage(null)
-      setCandidates([])
-      setCurrentIdx(0)
-      setCurrentTitle('')
+      setIsLoading(false)
       return
     }
+
     let cancelled = false
+    setIsLoading(true)
+
     getCachedImage(activeWord, lang).then(async cached => {
       if (cancelled) return
-      if (cached) {
+
+      // Show cached image immediately (if exists)
+      if (cached && cached.url) {
         setCurrentImage(cached.url)
         setCandidates(cached.candidates || [])
         setCurrentIdx(cached.currentIndex || 0)
-        if (cached.candidates && cached.currentIndex !== undefined) {
-          setCurrentTitle(cached.candidates[cached.currentIndex]?.title || '')
-        }
+        setCurrentTitle(cached.candidates?.[cached.currentIndex || 0]?.title || '')
+      }
 
-        // If cached image exists but has no candidates, re-fetch candidates in background
-        if (!cached.candidates || cached.candidates.length === 0) {
-          try {
-            const results = await searchImages(activeWord, lang)
-            if (!cancelled && results.length > 0) {
-              setCandidates(results)
+      // Fetch candidates in background if we don't have them
+      if (!cached || !cached.candidates || cached.candidates.length === 0) {
+        try {
+          const results = await searchImages(activeWord, lang)
+          if (cancelled) return
+
+          if (results.length > 0) {
+            setCandidates(results)
+            let finalIdx = 0
+            if (cached && cached.url) {
               const idx = results.findIndex(r => r.thumbnail === cached.url || r.url === cached.url)
-              const finalIdx = idx >= 0 ? idx : 0
-              setCurrentIdx(finalIdx)
-              setCurrentTitle(results[finalIdx].title)
-              await saveChosenImage(activeWord, lang, results[finalIdx].url, results, finalIdx)
+              if (idx >= 0) finalIdx = idx
             }
-          } catch {
-            // silent fail — user still sees the cached image
+            setCurrentIdx(finalIdx)
+            setCurrentImage(results[finalIdx].thumbnail)
+            setCurrentTitle(results[finalIdx].title)
+            await saveChosenImage(activeWord, lang, results[finalIdx].url, results, finalIdx)
           }
+        } catch {
+          // silent
         }
       }
+
+      if (!cancelled) setIsLoading(false)
     })
+
     return () => { cancelled = true }
   }, [activeWord, imagesEnabled, lang])
 
+  // Close popup when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -87,28 +103,6 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
     setShowBelow(rect.top < window.innerHeight * 0.45)
     setActiveWord(activeWord === word ? null : word)
     if (onWordClick) onWordClick(word)
-  }
-
-  const loadCandidates = async () => {
-    if (!activeWord) return
-    setIsLoading(true)
-    try {
-      const results = await searchImages(activeWord, lang)
-      setCandidates(results)
-      if (results.length > 0) {
-        setCurrentIdx(0)
-        setCurrentImage(results[0].thumbnail)
-        setCurrentTitle(results[0].title)
-        await saveChosenImage(activeWord, lang, results[0].url, results, 0)
-      } else {
-        setCurrentImage(null)
-        setCurrentTitle('')
-      }
-    } catch {
-      setCandidates([])
-    } finally {
-      setIsLoading(false)
-    }
   }
 
   const goToIndex = async (newIdx: number) => {
@@ -161,7 +155,7 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
                     minWidth: '180px', maxWidth: '240px', whiteSpace: 'normal'
                   }}
                 >
-                  {/* IMAGE + ARROWS */}
+                  {/* IMAGE (if we have one) */}
                   {imagesEnabled && currentImage && (
                     <div style={{ position: 'relative' }}>
                       <img
@@ -171,7 +165,7 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
                         onError={() => setCurrentImage(null)}
                       />
 
-                      {/* Arrows (only if candidates has more than 1) */}
+                      {/* Arrows (always visible if we have any candidates) */}
                       {candidates.length > 0 && (
                         <>
                           <button
@@ -217,7 +211,7 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
                         </span>
                       )}
 
-                      {/* Counter */}
+                      {/* Counter 1/N */}
                       {candidates.length > 0 && (
                         <span style={{
                           position: 'absolute', bottom: '4px', left: '50%', transform: 'translateX(-50%)',
@@ -244,19 +238,14 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
                     </div>
                   )}
 
-                  {/* Choose image button (if none or need to change) */}
-                  {imagesEnabled && !currentImage && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); loadCandidates() }}
-                      disabled={isLoading}
-                      style={{
-                        padding: '0.4rem', background: '#0f172a', border: '1px dashed #475569',
-                        color: '#94a3b8', borderRadius: '4px', cursor: isLoading ? 'wait' : 'pointer',
-                        fontSize: '0.75rem',
-                      }}
-                    >
-                      {isLoading ? 'Searching...' : '🖼 Choose image'}
-                    </button>
+                  {/* Loading indicator (only if no image yet) */}
+                  {imagesEnabled && !currentImage && isLoading && (
+                    <div style={{
+                      padding: '0.4rem', background: '#0f172a', border: '1px dashed #334155',
+                      color: '#64748b', borderRadius: '4px', fontSize: '0.7rem', textAlign: 'center',
+                    }}>
+                      Looking up...
+                    </div>
                   )}
 
                   {/* TRANSLATION + SPEAKER */}
