@@ -233,7 +233,7 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
                         }}
                         title="Remove image"
                       >
-                        ✕
+                        🗑️
                       </button>
                     </div>
                   )}

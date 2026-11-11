@@ -134,6 +134,24 @@ export function HomePage() {
     }
   }
 
+  const handleDeleteFolder = async (id: string, name: string) => {
+    const ok = await confirm(
+      `Delete folder "${name}"? All sets inside will be moved to Uncategorized.`,
+      'Delete Folder'
+    )
+    if (!ok) return
+
+    await db.transaction('rw', [db.sets, db.folders], async () => {
+      // Move all sets from this folder to Uncategorized (null)
+      await db.sets.where('folder_id').equals(id).modify({ folder_id: null })
+      // Delete the folder itself
+      await db.folders.delete(id)
+    })
+
+    // If we were viewing this folder, switch to "All Sets"
+    if (selectedFolder === id) setSelectedFolder('all')
+  }
+
   const currentFolderName = selectedFolder === 'all' ? 'All' :
     selectedFolder === 'null' ? 'Uncategorized' :
     folders.find(f => f.id === selectedFolder)?.name || ''
@@ -175,15 +193,35 @@ export function HomePage() {
             const color = getFolderColor(f.id)
             const isActive = selectedFolder === f.id
             return (
-              <button 
-                key={f.id} 
-                onClick={() => handleFolderClick(f.id, f.name)} 
-                className={`folder-btn ${isActive ? 'active' : ''} ${isEditingFolders ? 'editing' : ''}`}
-              >
-                <span className="folder-dot" style={{ background: color }}></span>
-                {isEditingFolders && <span style={{ fontSize: '0.75rem' }}>✏️</span>}
-                <span className="folder-name">{f.name}</span>
-              </button>
+              <div key={f.id} style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', width: '100%' }}>
+                <button 
+                  onClick={() => handleFolderClick(f.id, f.name)} 
+                  className={`folder-btn ${isActive ? 'active' : ''} ${isEditingFolders ? 'editing' : ''}`}
+                  style={{ flex: 1 }}
+                >
+                  <span className="folder-dot" style={{ background: color }}></span>
+                  {isEditingFolders && <span style={{ fontSize: '0.75rem' }}>✏️</span>}
+                  <span className="folder-name">{f.name}</span>
+                </button>
+                {isEditingFolders && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteFolder(f.id, f.name); }}
+                    style={{
+                      padding: '0.4rem 0.6rem',
+                      background: '#7f1d1d',
+                      border: '1px solid #ef4444',
+                      color: '#fff',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      flexShrink: 0
+                    }}
+                    title="Delete folder"
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
             )
           })}
         </div>
