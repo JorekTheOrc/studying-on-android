@@ -4,10 +4,18 @@ export function speak(text: string, langCode: string) {
     return
   }
 
+  // Clean text: remove underscores, asterisks, and collapse whitespace
+  const cleanText = text
+    .replace(/[_*~`#]/g, '')      // strip markdown/blank symbols
+    .replace(/\s+/g, ' ')         // collapse whitespace
+    .trim()
+
+  if (!cleanText) return
+
   // Cancel any ongoing speech
   window.speechSynthesis.cancel()
 
-  const utterance = new SpeechSynthesisUtterance(text)
+  const utterance = new SpeechSynthesisUtterance(cleanText)
   
   // Map common 2-letter codes to BCP-47
   const langMap: Record<string, string> = {

@@ -60,7 +60,8 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
                     background: '#1e293b', color: '#fff', padding: '0.6rem 1rem', borderRadius: '8px',
                     fontSize: '0.9rem', zIndex: 9999, border: '1px solid #475569',
                     boxShadow: '0 4px 6px -1px rgba(0,0,0,0.5)', marginBottom: '0.5rem',
-                    display: 'flex', flexDirection: 'column', gap: '0.3rem', whiteSpace: 'nowrap'
+                    display: 'flex', flexDirection: 'column', gap: '0.3rem', whiteSpace: 'normal',
+                    maxWidth: 'min(320px, 90vw)', wordBreak: 'break-word'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>

@@ -258,11 +258,8 @@ export function PracticePage() {
       )}
 
       {item.prompt && (
-        <h2 style={{ fontSize: '1.8rem', lineHeight: 1.4, marginBottom: '2rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+        <h2 style={{ fontSize: '1.8rem', lineHeight: 1.4, marginBottom: '2rem' }}>
           <InteractiveText text={item.prompt} vocabulary={item.vocabulary} onWordClick={handleWordClick} lang={targetLang} ttsEnabled={ttsEnabled} />
-          {ttsEnabled && (
-            <button onClick={() => speak(item.prompt!, targetLang)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: '0.2rem' }} title="Listen">🔊</button>
-          )}
         </h2>
       )}
 
@@ -287,9 +284,6 @@ export function PracticePage() {
               <div style={{ flex: 1 }}>
                 <InteractiveText text={opt.text} vocabulary={opt.vocabulary} onWordClick={handleWordClick} lang={targetLang} ttsEnabled={ttsEnabled} />
               </div>
-              {ttsEnabled && (
-                <span onClick={(e) => { e.stopPropagation(); speak(opt.text, targetLang); }} style={{ cursor: 'pointer', fontSize: '1.2rem', padding: '0 0.5rem' }} title="Listen">🔊</span>
-              )}
             </button>
           ))}
         </div>
