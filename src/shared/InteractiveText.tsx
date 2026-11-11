@@ -33,7 +33,7 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
       return
     }
     let cancelled = false
-    getCachedImage(activeWord, lang).then(cached => {
+    getCachedImage(activeWord, lang).then(async cached => {
       if (cancelled) return
       if (cached) {
         setCurrentImage(cached.url)
@@ -41,6 +41,23 @@ export function InteractiveText({ text, vocabulary, onWordClick, style, lang = '
         setCurrentIdx(cached.currentIndex || 0)
         if (cached.candidates && cached.currentIndex !== undefined) {
           setCurrentTitle(cached.candidates[cached.currentIndex]?.title || '')
+        }
+
+        // If cached image exists but has no candidates, re-fetch candidates in background
+        if (!cached.candidates || cached.candidates.length === 0) {
+          try {
+            const results = await searchImages(activeWord, lang)
+            if (!cancelled && results.length > 0) {
+              setCandidates(results)
+              const idx = results.findIndex(r => r.thumbnail === cached.url || r.url === cached.url)
+              const finalIdx = idx >= 0 ? idx : 0
+              setCurrentIdx(finalIdx)
+              setCurrentTitle(results[finalIdx].title)
+              await saveChosenImage(activeWord, lang, results[finalIdx].url, results, finalIdx)
+            }
+          } catch {
+            // silent fail — user still sees the cached image
+          }
         }
       }
     })
