@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { generatePrompt } from '../../utils/prompt'
 import { validateImportedSet, type ValidationResult } from '../../utils/validator'
+import { callAI, extractJSON } from '../../utils/ai'
 import { db } from '../../db'
 import { useModal } from '../../shared/ModalContext'
+import { useLiveQuery } from 'dexie-react-hooks'
 import type { BuilderParams, ExerciseType } from '../../types'
 
 const EXERCISE_TYPES: { id: ExerciseType; label: string; desc: string }[] = [
@@ -20,6 +22,7 @@ const EXERCISE_TYPES: { id: ExerciseType; label: string; desc: string }[] = [
 export function StudioPage() {
   const { alert } = useModal()
   const [activeTab, setActiveTab] = useState<'generate' | 'import'>('generate')
+  const [isGenerating, setIsGenerating] = useState(false)
 
   // --- BUILDER STATE ---
   const [params, setParams] = useState<BuilderParams>({
@@ -29,6 +32,12 @@ export function StudioPage() {
   })
   const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [copied, setCopied] = useState(false)
+
+  // Settings for AI
+  const aiProviderSetting = useLiveQuery(() => db.settings.get('ai_provider'))
+  const aiProvider = aiProviderSetting?.value || 'none'
+  const aiKeySetting = useLiveQuery(() => db.settings.get('ai_api_key'))
+  const aiKey = aiKeySetting?.value || ''
 
   const handleGenerate = () => {
     setGeneratedPrompt(generatePrompt(params))
@@ -42,6 +51,27 @@ export function StudioPage() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) { console.error('Failed to copy', err) }
+  }
+
+  const handleGenerateWithAI = async () => {
+    if (!generatedPrompt) return
+    setIsGenerating(true)
+    try {
+      const rawResponse = await callAI(generatedPrompt, aiProvider, aiKey)
+      const cleanJson = extractJSON(rawResponse)
+      
+      setJsonText(cleanJson)
+      setActiveTab('import')
+      
+      // Auto-validate
+      const res = validateImportedSet(cleanJson)
+      setResult(res)
+      setSaved(false)
+    } catch (e: any) {
+      await alert("AI Generation Failed: " + e.message)
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const updatePlan = (type: ExerciseType, field: 'count' | 'itemsPerExercise', value: string) => {
@@ -163,9 +193,18 @@ export function StudioPage() {
 
           {generatedPrompt && (
             <div style={{ marginTop: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <h2 style={{ margin: 0 }}>Generated Prompt</h2>
-                <button onClick={handleCopy} style={{ padding: '0.5rem 1rem', background: copied ? '#22c55e' : '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{copied ? '✓ Copied!' : 'Copy to Clipboard'}</button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {aiProvider !== 'none' && (
+                    <button onClick={handleGenerateWithAI} disabled={isGenerating} style={{ padding: '0.5rem 1rem', background: isGenerating ? '#334155' : '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: isGenerating ? 'wait' : 'pointer', fontWeight: 'bold' }}>
+                      {isGenerating ? 'Generating with AI...' : '✨ Generate with AI'}
+                    </button>
+                  )}
+                  <button onClick={handleCopy} style={{ padding: '0.5rem 1rem', background: copied ? '#22c55e' : '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    {copied ? '✓ Copied!' : 'Copy to Clipboard'}
+                  </button>
+                </div>
               </div>
               <textarea readOnly value={generatedPrompt} style={{ width: '100%', height: '300px', padding: '1rem', background: '#0f172a', border: '1px solid #475569', color: '#94a3b8', borderRadius: '4px', fontFamily: 'monospace' }} />
             </div>

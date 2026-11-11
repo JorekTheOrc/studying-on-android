@@ -10,9 +10,23 @@ export function SettingsPage() {
   
   const ttsSetting = useLiveQuery(() => db.settings.get('tts_enabled'))
   const ttsEnabled = ttsSetting ? ttsSetting.value === true : true
+  
+  const aiProviderSetting = useLiveQuery(() => db.settings.get('ai_provider'))
+  const aiProvider = aiProviderSetting?.value || 'none'
+  
+  const aiKeySetting = useLiveQuery(() => db.settings.get('ai_api_key'))
+  const aiKey = aiKeySetting?.value || ''
 
   const toggleTts = async () => {
     await db.settings.put({ key: 'tts_enabled', value: !ttsEnabled })
+  }
+
+  const updateAiProvider = async (val: string) => {
+    await db.settings.put({ key: 'ai_provider', value: val })
+  }
+
+  const updateAiKey = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    await db.settings.put({ key: 'ai_api_key', value: e.target.value })
   }
 
   const handleExport = async () => {
@@ -109,6 +123,43 @@ export function SettingsPage() {
             <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Show speaker buttons across the app.</div>
           </div>
         </label>
+      </div>
+
+      <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: '#1e293b', borderRadius: '8px', border: '1px solid #334155' }}>
+        <h2 style={{ marginTop: 0 }}>AI Integration (Optional)</h2>
+        <p style={{ color: '#94a3b8', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+          Add an API key to generate JSON directly from Studio without copy-pasting.
+        </p>
+
+        <label style={{ display: 'block', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.9rem', color: '#cbd5e1', marginBottom: '0.3rem' }}>Provider</div>
+          <select 
+            value={aiProvider} 
+            onChange={e => updateAiProvider(e.target.value)} 
+            style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px' }}
+          >
+            <option value="none">None (Manual Copy-Paste)</option>
+            <option value="gemini">Google Gemini (Free tier)</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </label>
+
+        {aiProvider !== 'none' && (
+          <label style={{ display: 'block', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.9rem', color: '#cbd5e1', marginBottom: '0.3rem' }}>API Key</div>
+            <input 
+              type="password" 
+              value={aiKey} 
+              onChange={updateAiKey} 
+              placeholder="Paste your API key here..." 
+              style={{ width: '100%', padding: '0.8rem', background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '4px' }} 
+            />
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.3rem' }}>
+              Stored locally on your device. Never sent anywhere except the AI provider.
+            </div>
+          </label>
+        )}
       </div>
 
       <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: '#1e293b', borderRadius: '8px', border: '1px solid #334155' }}>
