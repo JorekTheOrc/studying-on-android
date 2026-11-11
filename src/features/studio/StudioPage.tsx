@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { generatePrompt } from '../../utils/prompt'
 import { validateImportedSet, type ValidationResult } from '../../utils/validator'
 import { db } from '../../db'
+import { useModal } from '../../shared/ModalContext'
 import type { BuilderParams, ExerciseType } from '../../types'
 
 const EXERCISE_TYPES: { id: ExerciseType; label: string; desc: string }[] = [
@@ -17,6 +18,7 @@ const EXERCISE_TYPES: { id: ExerciseType; label: string; desc: string }[] = [
 ]
 
 export function StudioPage() {
+  const { alert } = useModal()
   const [activeTab, setActiveTab] = useState<'generate' | 'import'>('generate')
 
   // --- BUILDER STATE ---
@@ -87,7 +89,7 @@ export function StudioPage() {
       setJsonText('')
       setResult(null)
     } catch (e: any) {
-      alert('Database error: ' + e.message)
+      await alert('Database error: ' + e.message)
     } finally {
       setIsSaving(false)
     }

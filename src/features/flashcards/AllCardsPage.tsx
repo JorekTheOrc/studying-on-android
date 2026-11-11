@@ -5,9 +5,11 @@ import { useNavigate } from 'react-router-dom'
 import type { Card } from '../../types'
 import { ReviewModal } from '../../shared/ReviewModal'
 import { getFolderColor } from '../../utils'
+import { useModal } from '../../shared/ModalContext'
 
 export function AllCardsPage() {
   const navigate = useNavigate()
+  const { prompt } = useModal()
   const [search, setSearch] = useState('')
   const [filterFolder, setFilterFolder] = useState('all')
   const [filterSet, setFilterSet] = useState('all')
@@ -25,7 +27,6 @@ export function AllCardsPage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
   const [reviewBaseUrl, setReviewBaseUrl] = useState('')
 
-  // Edit modes for filters
   const [editMode, setEditMode] = useState<'none' | 'folder' | 'set' | 'tag'>('none')
 
   if (!cards || !sets || !folders) return <p>Loading cards...</p>
@@ -84,10 +85,9 @@ export function AllCardsPage() {
     setEditingCard(null)
   }
 
-  // --- Rename Handlers ---
   const handleFolderPillClick = async (id: string, currentName: string) => {
     if (editMode === 'folder') {
-      const newName = prompt("Rename folder:", currentName)
+      const newName = await prompt("Rename folder:", currentName, "Rename Folder")
       if (newName && newName.trim() !== '' && newName !== currentName) await db.folders.update(id, { name: newName.trim() })
     } else {
       setFilterFolder(id); setFilterSet('all')
@@ -96,7 +96,7 @@ export function AllCardsPage() {
 
   const handleSetPillClick = async (id: string, currentTitle: string) => {
     if (editMode === 'set') {
-      const newTitle = prompt("Rename set:", currentTitle)
+      const newTitle = await prompt("Rename set:", currentTitle, "Rename Set")
       if (newTitle && newTitle.trim() !== '' && newTitle !== currentTitle) await db.sets.update(id, { title: newTitle.trim() })
     } else {
       setFilterSet(id)
@@ -105,7 +105,7 @@ export function AllCardsPage() {
 
   const handleTagPillClick = async (tag: string) => {
     if (editMode === 'tag') {
-      const newTag = prompt("Rename tag (remove # if any):", tag)
+      const newTag = await prompt("Rename tag (remove # if any):", tag, "Rename Tag")
       if (newTag && newTag.trim() !== '' && newTag !== tag) {
         const cleanNewTag = newTag.trim().replace(/^#/, '')
         await db.sets.toCollection().modify(s => { if (s.tags.includes(tag)) s.tags = s.tags.map(t => t === tag ? cleanNewTag : t) })
@@ -152,7 +152,6 @@ export function AllCardsPage() {
 
       <div style={{ background: '#1e293b', padding: '1.2rem', borderRadius: '8px', border: '1px solid #334155', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         
-        {/* Folders Row */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
             <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Filter by Folder:</div>
@@ -171,7 +170,6 @@ export function AllCardsPage() {
           </div>
         </div>
 
-        {/* Sets Sub-Row */}
         <div style={{ marginLeft: '1rem', paddingLeft: '1rem', borderLeft: '2px solid #334155' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
             <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Filter by Set:</div>
@@ -189,7 +187,6 @@ export function AllCardsPage() {
           </div>
         </div>
 
-        {/* Tags Row */}
         {allTags.length > 0 && (
           <div style={{ borderTop: '1px solid #334155', paddingTop: '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>

@@ -5,9 +5,11 @@ import { useNavigate } from 'react-router-dom'
 import type { Set } from '../../types'
 import { generateUUID, getFolderColor } from '../../utils'
 import { ReviewModal } from '../../shared/ReviewModal'
+import { useModal } from '../../shared/ModalContext'
 
 export function HomePage() {
   const navigate = useNavigate()
+  const { prompt } = useModal()
   const sets = useLiveQuery(() => db.sets.toArray(), [])
   const folders = useLiveQuery(() => db.folders.toArray(), [])
   
@@ -77,7 +79,7 @@ export function HomePage() {
   }
 
   const createFolder = async () => {
-    const name = prompt("Enter folder name (e.g., Spanish, Math):")
+    const name = await prompt("Enter folder name (e.g., Spanish, Math):", '', "New Folder")
     if (!name) return
     const newFolder = {
       id: generateUUID(), name, parent_id: null, kind: 'custom' as const, icon: '📁',
@@ -89,7 +91,7 @@ export function HomePage() {
 
   const handleFolderClick = async (id: string, currentName: string) => {
     if (isEditingFolders) {
-      const newName = prompt("Rename folder:", currentName)
+      const newName = await prompt("Rename folder:", currentName, "Rename")
       if (newName && newName.trim() !== '' && newName !== currentName) {
         await db.folders.update(id, { name: newName.trim() })
       }
@@ -165,7 +167,7 @@ export function HomePage() {
         </div>
 
         {filteredSets.length === 0 ? (
-          <div style={{ padding: '3rem 1rem', border: '1px dashed #475569', borderRadius: '8px', textAlign: 'center', color: '#94a3b8' }}>
+          <div style={{ width: '100%', boxSizing: 'border-box', padding: '3rem 1rem', border: '1px dashed #475569', borderRadius: '8px', textAlign: 'center', color: '#94a3b8' }}>
             <h2 style={{ marginTop: 0, color: '#e2e8f0' }}>No sets found</h2>
             <p>Try changing the folder or search query.</p>
           </div>

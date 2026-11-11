@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { db } from '../../db'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useModal } from '../../shared/ModalContext'
 
 export function SettingsPage() {
+  const { alert, confirm } = useModal()
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   
@@ -37,7 +39,7 @@ export function SettingsPage() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (e: any) {
-      alert("Export failed: " + e.message)
+      await alert("Export failed: " + e.message)
     } finally {
       setIsExporting(false)
     }
@@ -47,7 +49,7 @@ export function SettingsPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (!confirm("WARNING: This will OVERWRITE all current data with the backup. Are you sure?")) {
+    if (!(await confirm("WARNING: This will OVERWRITE all current data with the backup. Are you sure?", "Restore Backup"))) {
       e.target.value = ''
       return
     }
@@ -76,10 +78,10 @@ export function SettingsPage() {
           if (json.settings?.length) await db.settings.bulkAdd(json.settings)
         })
 
-        alert("Backup restored successfully!")
+        await alert("Backup restored successfully!")
         window.location.reload()
       } catch (err: any) {
-        alert("Import failed: " + err.message)
+        await alert("Import failed: " + err.message)
       } finally {
         setIsImporting(false)
         e.target.value = ''
@@ -115,12 +117,12 @@ export function SettingsPage() {
           Your data is stored locally. Export a backup to avoid losing progress.
         </p>
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button onClick={handleExport} disabled={isExporting} style={{ flex: 1, padding: '0.8rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: isExporting ? 'wait' : 'pointer', fontWeight: 'bold' }}>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <button onClick={handleExport} disabled={isExporting} style={{ flex: 1, minWidth: '200px', padding: '0.8rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '4px', cursor: isExporting ? 'wait' : 'pointer', fontWeight: 'bold' }}>
             {isExporting ? 'Exporting...' : 'Export Backup (.json)'}
           </button>
 
-          <div style={{ flex: 1, position: 'relative' }}>
+          <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
             <input type="file" accept=".json" onChange={handleImport} disabled={isImporting} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
             <button disabled={isImporting} style={{ width: '100%', padding: '0.8rem', background: '#334155', color: '#fff', border: '1px solid #475569', borderRadius: '4px', cursor: isImporting ? 'wait' : 'pointer', fontWeight: 'bold' }}>
               {isImporting ? 'Importing...' : 'Import Backup'}
