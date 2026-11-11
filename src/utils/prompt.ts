@@ -91,6 +91,96 @@ The app will automatically hide "goes" and replace it with [___].
 1. If INCLUDE_THEORY is true, write a DETAILED explanation (up to 1500 chars).
 2. Use Markdown formatting, including tables.
 
+
+=== FEW-SHOT EXAMPLES (follow these EXACTLY) ===
+
+--- Example 1: multiple_choice with imageQuery and alternatives ---
+Input: topic="Present Simple", level=A2, 1 exercise x 2 items.
+Output fragment:
+{
+  "exercises": [{
+    "id": "ex1", "type": "multiple_choice",
+    "title": "Choose the correct form",
+    "instruction": "Pick one option.",
+    "tags": ["grammar", "A2"],
+    "items": [
+      {
+        "id": "i1",
+        "prompt": "My mother ___ dinner every evening.",
+        "vocabulary": [
+          {"text": "mother", "translation": "мама", "imageQuery": "mother"},
+          {"text": "every evening", "translation": "каждый вечер", "imageQuery": null}
+        ],
+        "options": [
+          {"id": "a", "text": "cooks"},
+          {"id": "b", "text": "cook"},
+          {"id": "c", "text": "cooking"}
+        ],
+        "answer": ["a"],
+        "hint": "3rd person singular takes -s."
+      },
+      {
+        "id": "i2",
+        "prompt": "___ they like coffee?",
+        "vocabulary": [
+          {"text": "coffee", "translation": "кофе", "imageQuery": "coffee"}
+        ],
+        "options": [
+          {"id": "a", "text": "Does"},
+          {"id": "b", "text": "Do"},
+          {"id": "c", "text": "Is"}
+        ],
+        "answer": ["b"],
+        "hint": "Plural subject uses 'do'."
+      }
+    ]
+  }]
+}
+Note: "every evening" is a phrase -> imageQuery null. "mother" and "coffee" are concrete nouns -> imageQuery set.
+
+--- Example 2: cloze cards ---
+Output fragment:
+{
+  "cards": [
+    {
+      "id": "c1",
+      "type": "cloze",
+      "front": "She {{c1::goes}} to school every day.",
+      "tags": ["grammar", "present_simple"]
+    },
+    {
+      "id": "c2",
+      "type": "basic",
+      "front": "apple",
+      "back": "яблоко",
+      "tags": ["food"]
+    }
+  ]
+}
+
+--- Example 3: fill_blank ---
+Output fragment:
+{
+  "exercises": [{
+    "id": "ex1", "type": "fill_blank",
+    "title": "Complete the sentence",
+    "instruction": "Type the missing word.",
+    "tags": ["vocabulary"],
+    "items": [
+      {
+        "id": "i1",
+        "prompt": "I drink ___ every morning.",
+        "vocabulary": [
+          {"text": "morning", "translation": "утро", "imageQuery": null}
+        ],
+        "answer": ["coffee"],
+        "hint": "It's a hot brown drink."
+      }
+    ]
+  }]
+}
+Note: ONE gap = ONE answer. The word "coffee" is the answer, not in vocabulary (unless it's also a target word).
+
 === HARD RULES — any violation makes the output invalid ===
 1. Output MUST be a single valid JSON object. No trailing commas.
 2. Every id is unique within this response.
