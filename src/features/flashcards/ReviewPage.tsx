@@ -163,26 +163,17 @@ export function ReviewPage() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: 0 }}>
           <h2 style={{ fontSize: '2rem', margin: 0, color: '#e2e8f0', lineHeight: 1.2 }}>
-            {cardDisplay.isCloze && !isFlipped ? renderClozeFront(cardDisplay.front) : cardDisplay.front}
+            {cardDisplay.isCloze 
+              ? (isFlipped ? renderClozeBack(cardDisplay.front) : renderClozeFront(cardDisplay.front)) 
+              : cardDisplay.front}
           </h2>
-          {ttsEnabled && !cardDisplay.isCloze && (
-            <button onClick={(e) => { e.stopPropagation(); speak(cardDisplay.front, cardDisplay.frontLang) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0 }}>🔊</button>
+          {ttsEnabled && (!cardDisplay.isCloze || isFlipped) && (
+            <button onClick={(e) => { 
+              e.stopPropagation(); 
+              speak(cardDisplay.isCloze ? renderClozeBack(cardDisplay.front) : cardDisplay.front, cardDisplay.frontLang) 
+            }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0 }}>🔊</button>
           )}
         </div>
-        
-        {isFlipped && cardDisplay.isCloze && (
-          <>
-            <hr style={{ width: '50%', borderColor: '#475569', margin: '2rem 0' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <h3 style={{ fontSize: '1.5rem', margin: 0, color: '#38bdf8', lineHeight: 1.4 }}>
-                {renderClozeBack(cardDisplay.front)}
-              </h3>
-              {ttsEnabled && (
-                <button onClick={(e) => { e.stopPropagation(); speak(renderClozeBack(cardDisplay.front), cardDisplay.frontLang) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}>🔊</button>
-              )}
-            </div>
-          </>
-        )}
 
         {isFlipped && !cardDisplay.isCloze && (
           <>
