@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { useNavigate } from 'react-router-dom'
@@ -13,9 +13,15 @@ export function HomePage() {
   const { prompt, confirm } = useModal()
   const sets = useLiveQuery(() => db.sets.toArray(), [])
   const folders = useLiveQuery(() => db.folders.toArray(), [])
+  const allCards = useLiveQuery(() => db.cards.toArray(), [])
+  const allExercises = useLiveQuery(() => db.exercises.toArray(), [])
   
   const [selectedFolder, setSelectedFolder] = useState<string | 'all'>('all')
   const [search, setSearch] = useState('')
+  const [contentMatches, setContentMatches] = useState<{
+    setIds: globalThis.Set<string>
+    cardMatches: { setId: string; front: string; back: string; id: string }[]
+  }>({ setIds: new globalThis.Set(), cardMatches: [] })
   
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedSets, setSelectedSets] = useState<string[]>([])
@@ -29,13 +35,61 @@ export function HomePage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
   const [reviewBaseUrl, setReviewBaseUrl] = useState('')
 
+  // Content search: scan cards + exercises after 400ms of typing
+  useEffect(() => {
+    if (!allCards || !allExercises) return
+    const q = search.trim().toLowerCase()
+    if (q.length < 2) {
+      setContentMatches({ setIds: new globalThis.Set(), cardMatches: [] })
+      return
+    }
+
+    const timer = setTimeout(() => {
+      const setIds = new globalThis.Set<string>()
+      const cardMatches: { setId: string; front: string; back: string; id: string }[] = []
+
+      // Search cards
+      for (const c of allCards) {
+        const matchesFront = c.front?.toLowerCase().includes(q)
+        const matchesBack = c.back?.toLowerCase().includes(q)
+        if (matchesFront || matchesBack) {
+          setIds.add(c.set_id)
+          if (cardMatches.length < 20) {
+            cardMatches.push({ setId: c.set_id, front: c.front || '', back: c.back || '', id: c.id })
+          }
+        }
+      }
+
+      // Search exercises (prompts + answers + hints)
+      for (const ex of allExercises) {
+        let found = false
+        for (const item of ex.items) {
+          if (found) break
+          if (item.prompt?.toLowerCase().includes(q)) { found = true; break }
+          if (item.hint?.toLowerCase().includes(q)) { found = true; break }
+          if (item.explanation?.toLowerCase().includes(q)) { found = true; break }
+          for (const ans of item.answer || []) {
+            if (String(ans).toLowerCase().includes(q)) { found = true; break }
+          }
+        }
+        if (found) setIds.add(ex.set_id)
+      }
+
+      setContentMatches({ setIds, cardMatches })
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [search, allCards, allExercises])
+
   if (!sets || !folders) return <p>Loading database...</p>
 
   const filteredSets = sets.filter(s => {
     const matchesFolder = selectedFolder === 'all' || s.folder_id === selectedFolder || (selectedFolder === 'null' && !s.folder_id)
     const q = search.toLowerCase()
-    const matchesSearch = s.title.toLowerCase().includes(q) || s.tags.some(t => t.toLowerCase().includes(q))
-    return matchesFolder && matchesSearch
+    if (!q) return matchesFolder
+    const matchesTitleOrTags = s.title.toLowerCase().includes(q) || s.tags.some(t => t.toLowerCase().includes(q))
+    const matchesContent = contentMatches.setIds.has(s.id)
+    return matchesFolder && (matchesTitleOrTags || matchesContent)
   }).sort((a, b) => b.created_at - a.created_at)
 
   const toggleSelection = (id: string) => {
@@ -288,7 +342,14 @@ export function HomePage() {
                       />
                     )}
                     <div style={{ flex: 1 }}>
-                      <h3 style={{ margin: '0 0 0.4rem 0', color: '#38bdf8', fontSize: '1.15rem' }}>{set.title}</h3>
+                      <h3 style={{ margin: '0 0 0.4rem 0', color: '#38bdf8', fontSize: '1.15rem' }}>
+                      {set.title}
+                      {contentMatches.setIds.has(set.id) && search.trim().length >= 2 && (
+                        <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', background: '#14532d', color: '#86efac', padding: '0.15rem 0.5rem', borderRadius: '8px', fontWeight: 'normal' }}>
+                          matched in content
+                        </span>
+                      )}
+                    </h3>
                       <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
                         {set.topic || 'General'} · {set.level || 'N/A'}
                       </div>
