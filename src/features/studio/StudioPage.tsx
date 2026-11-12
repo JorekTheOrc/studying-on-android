@@ -36,6 +36,8 @@ const chipStyle = (active: boolean): React.CSSProperties => ({
   transition: '0.15s',
 })
 
+const SHOW_MOCK = false // Set to true to enable Mock generator for UI testing
+
 export function StudioPage() {
   const { alert, prompt, confirm } = useModal()
   const [activeTab, setActiveTab] = useState<'generate' | 'import'>('generate')
@@ -392,7 +394,9 @@ export function StudioPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <h2 style={{ margin: 0 }}>Generated Prompt</h2>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <Button size="sm" variant="warning" onClick={handleMockGenerate}>🧪 Mock (Test UI)</Button>
+                  {SHOW_MOCK && (
+                    <Button size="sm" variant="warning" onClick={handleMockGenerate}>🧪 Mock (Test UI)</Button>
+                  )}
                   {aiProvider !== 'none' && (
                     <Button size="sm" variant="purple" onClick={handleGenerateWithAI} disabled={isGenerating}>
                       {isGenerating ? 'Generating...' : '✨ Generate with AI'}
