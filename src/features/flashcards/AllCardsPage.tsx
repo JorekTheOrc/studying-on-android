@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import { useNavigate } from 'react-router-dom'
@@ -8,6 +9,26 @@ import { getFolderColor } from '../../utils'
 import { useModal } from '../../shared/ModalContext'
 import { Button, Input } from '../../shared/ui'
 import { useEscapeKey } from '../../shared/useEscapeKey'
+
+// Render cloze cards: highlight {{c1::word}} as [word] with a marker
+function renderClozeText(text: string): ReactNode {
+  const parts: (string | ReactNode)[] = []
+  const regex = /\{\{c\d+::(.*?)\}\}/g
+  let lastIndex = 0
+  let match
+  let key = 0
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index))
+    parts.push(
+      <span key={key++} style={{ background: '#1e40af', color: '#bfdbfe', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 'bold' }}>
+        {match[1]}
+      </span>
+    )
+    lastIndex = match.index + match[0].length
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex))
+  return <>{parts}</>
+}
 
 export function AllCardsPage() {
   const navigate = useNavigate()
@@ -229,8 +250,15 @@ export function AllCardsPage() {
             return (
               <div key={card.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '1.2rem', borderRadius: '8px', borderLeft: `4px solid ${isDue ? '#ef4444' : '#22c55e'}` }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#e2e8f0', marginBottom: '0.3rem' }}>{card.front}</div>
-                  <div style={{ color: '#38bdf8', fontSize: '1rem', marginBottom: '0.8rem' }}>{card.back}</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#e2e8f0', marginBottom: '0.3rem' }}>
+                    {card.type === 'cloze' ? renderClozeText(card.front) : card.front}
+                  </div>
+                  {card.type !== 'cloze' && card.back && (
+                    <div style={{ color: '#38bdf8', fontSize: '1rem', marginBottom: '0.8rem' }}>{card.back}</div>
+                  )}
+                  {card.type === 'cloze' && (
+                    <div style={{ color: '#64748b', fontSize: '0.8rem', marginBottom: '0.8rem', fontStyle: 'italic' }}>Cloze</div>
+                  )}
                   <div style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span>Set: <strong>{set?.title || 'Unknown'}</strong></span>
                     {card.tags.length > 0 && (
